@@ -420,33 +420,32 @@ static __rte_noreturn void lcore_main(void)
                     {
                         printf("Packet Detected in database\n");
                         // Create a copy of the received packet
-                        struct rte_mbuf *rx_pkt_copy = rte_pktmbuf_copy(pkt, pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-                        if (rx_pkt_copy == NULL)
+                        struct rte_mbuf *rst_packet_client = rte_pktmbuf_copy(pkt, pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+                        if (rst_packet_client == NULL)
                         {
-                            printf("Error copying packet\n");
+                            printf("Error copying packet to Client Server\n");
                             continue; // Skip this packet
                         }
                         struct rte_mbuf *rst_packet_server = rte_pktmbuf_copy(pkt, pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
                         if (rst_packet_server == NULL)
                         {
-                            printf("Error copying packet\n");
-                            rte_pktmbuf_free(rx_pkt_copy); // Free the first packet
-                            continue;                      // Skip this packet
+                            printf("Error copying packet to RST Server\n");
+                            continue;                      
                         }
 
                         // Apply modifications to the packets
-                        reset_tcp_client(rx_pkt_copy);
+                        reset_tcp_client(rst_packet_client);
                         reset_tcp_server(rst_packet_server);
 
                         // Transmit modified packets
-                        const uint16_t rst_client_sent = rte_eth_tx_burst(1, 0, &rx_pkt_copy, 1);
+                        const uint16_t rst_client_sent = rte_eth_tx_burst(1, 0, &rst_packet_client, 1);
                         if (rst_client_sent)
                         {
                             printf("Packet to client sent\n");
                         }
                         else
                         {
-                            rte_pktmbuf_free(rx_pkt_copy);
+                            rte_pktmbuf_free(rst_packet_client);
                         }
 
                         const uint16_t rst_to_server_sent = rte_eth_tx_burst(1, 0, &rst_packet_server, 1);
