@@ -2,6 +2,30 @@
  * Copyright(c) 2010-2015 Intel Corporation
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <sys/types.h>
+#include <sys/queue.h>
+#include <setjmp.h>
+#include <stdarg.h>
+#include <ctype.h>
+#include <errno.h>
+#include <getopt.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <time.h>
+
+// DPDK library
+#include <rte_eal.h>
+#include <rte_ethdev.h>
+#include <rte_cycles.h>
+#include <rte_lcore.h>
+#include <rte_mbuf.h>
+#include <rte_tcp.h>
+#include <rte_pdump.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -44,6 +68,83 @@ static struct IP_Cache ip_cache[CACHE_SIZE];
  * Initializes a given port using global settings and with the RX buffers
  * coming from the mbuf_pool passed as a parameter.
  */
+
+// Timer period for statistics
+static uint16_t timer_period = 1;       // 100 Cycle
+static uint16_t timer_period_stats = 1; // 1 second
+static uint16_t timer_period_send = 1;  // 10 minutes
+
+// TDOO: Create struct for packet broker identifier
+
+// Port statistic struct
+struct port_statistics_data
+{
+    uint64_t tx_count;
+    uint64_t rx_count;
+    uint64_t tx_size;
+    uint64_t rx_size;
+    uint64_t dropped;
+    uint64_t rstClient;
+    uint64_t rstServer;
+    // TODO: add size of packet, throughpout.
+} __rte_cache_aligned;
+struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
+
+static void
+print_stats(void)
+{
+    uint64_t total_packets_dropped, total_packets_tx, total_packets_rx;
+    unsigned int portid;
+
+    total_packets_dropped = 0;
+    total_packets_tx = 0;
+    total_packets_rx = 0;
+
+    const char clr[] = {27, '[', '2', 'J', '\0'};
+    const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
+
+    // Clear screen and move to top left
+    printf("%s%s", clr, topLeft);
+
+    printf("\nRefreshed every %d seconds. "
+           "Send every %d minutes.\n",
+           timer_period_stats, timer_period_send);
+    printf("\nPort statistics ====================================");
+
+    for (portid = 0; portid < 2; portid++)
+    {
+        printf("\nStatistics for port %u ------------------------------"
+               "\nPackets sent count: %18" PRIu64
+               "\nPackets sent size: %19" PRIu64
+               "\nPackets received count: %14" PRIu64
+               "\nPackets received size: %15" PRIu64
+               "\nPackets dropped: %21" PRIu64
+               "\nRST to Client:  %22" PRIu64
+               "\nRST to Server:          %14" PRIu64,
+               portid,
+               port_statistics[portid].tx_count,
+               port_statistics[portid].tx_size,
+               port_statistics[portid].rx_count,
+               port_statistics[portid].rx_size,
+               port_statistics[portid].dropped,
+               port_statistics[portid].rstClient,
+               port_statistics[portid].rstServer);
+
+        total_packets_dropped += port_statistics[portid].dropped;
+        total_packets_tx += port_statistics[portid].tx_count;
+        total_packets_rx += port_statistics[portid].rx_count;
+    }
+    printf("\nAggregate statistics ==============================="
+           "\nTotal packets sent: %18" PRIu64
+           "\nTotal packets received: %14" PRIu64
+           "\nTotal packets dropped: %15" PRIu64,
+           total_packets_tx,
+           total_packets_rx,
+           total_packets_dropped);
+    printf("\n====================================================\n");
+
+    fflush(stdout);
+}
 
 /* Main functional part of port initialization. 8< */
 static inline int
@@ -182,62 +283,6 @@ static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
     }
 }
 
-static inline void view_packet(struct rte_mbuf *pkt)
-{
-    // Assuming it's an Ethernet frame containing an IPv4 packet
-    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
-
-    // Check if it's an IPv4 packet
-    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-    {
-        // Access the IP Header
-        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-        // Access the TCP header
-        struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
-
-        uint8_t *src_mac = eth_hdr->src_addr.addr_bytes;
-        uint8_t *dst_mac = eth_hdr->dst_addr.addr_bytes;
-
-        // Access the source and destination IPv4 addresses
-        uint32_t src_ip = rte_be_to_cpu_32(ip_hdr->src_addr);
-        uint32_t dst_ip = rte_be_to_cpu_32(ip_hdr->dst_addr);
-
-        // Access the source and destination ports
-        uint16_t src_port = rte_be_to_cpu_16(tcp_hdr->src_port);
-        uint16_t dst_port = rte_be_to_cpu_16(tcp_hdr->dst_port);
-
-        // Access the TCP flags
-        uint16_t tcp_flags = rte_be_to_cpu_16(tcp_hdr->tcp_flags);
-
-        // Calculate the packet size
-        uint16_t packet_size = pkt->pkt_len;
-
-        // Manually reverse the byte order of the IP addresses
-        src_ip = (src_ip >> 24) | ((src_ip << 8) & 0xFF0000) | ((src_ip >> 8) & 0xFF00) | (src_ip << 24);
-        dst_ip = (dst_ip >> 24) | ((dst_ip << 8) & 0xFF0000) | ((dst_ip >> 8) & 0xFF00) | (dst_ip << 24);
-
-        // Convert the numeric IP addresses to dotted-decimal strings
-        char src_ip_str[INET_ADDRSTRLEN];
-        char dst_ip_str[INET_ADDRSTRLEN];
-
-        inet_ntop(AF_INET, &src_ip, src_ip_str, INET_ADDRSTRLEN);
-        inet_ntop(AF_INET, &dst_ip, dst_ip_str, INET_ADDRSTRLEN);
-
-        // Print the source and destination IP addresses, ports, TCP flags, and packet size
-        printf("Source MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-               src_mac[0], src_mac[1], src_mac[2], src_mac[3], src_mac[4], src_mac[5]);
-        printf("Destination MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
-               dst_mac[0], dst_mac[1], dst_mac[2], dst_mac[3], dst_mac[4], dst_mac[5]);
-        printf("Source IP: %s, Source Port: %d\n", src_ip_str, src_port);
-        printf("Destination IP: %s, Destination Port: %d\n", dst_ip_str, dst_port);
-        printf("TCP Flags: 0x%x\n", tcp_flags);
-        printf("Packet Size: %d bytes\n", packet_size);
-    }
-    else
-    {
-        // Not an IPv4 packet, handle accordingly
-    }
-}
 static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 {
     // Extract Ethernet header
@@ -375,11 +420,9 @@ static __rte_noreturn void lcore_main(void)
 {
     uint16_t port;
     init_database();
+    uint64_t timer_tsc = 0;
 
-    /*
-     * Check that the port is on the same NUMA node as the polling thread
-     * for optimal performance.
-     */
+    /* Check NUMA locality for each port for optimal performance. */
     RTE_ETH_FOREACH_DEV(port)
     {
         if (rte_eth_dev_socket_id(port) >= 0 &&
@@ -396,76 +439,109 @@ static __rte_noreturn void lcore_main(void)
     /* Main work of the application loop. */
     for (;;)
     {
-        /*
-         * Receive packets on a port and forward them on the paired
-         * port. The mapping is 0 -> 1, 1 -> 0, 2 -> 3, 3 -> 2, etc.
-         */
         RTE_ETH_FOREACH_DEV(port)
         {
             /* Get a burst of RX packets from the first port of the pair. */
-            struct rte_mbuf *bufs[BURST_SIZE];
-            const uint16_t nb_rx = rte_eth_rx_burst(0, 0, bufs, BURST_SIZE);
+            struct rte_mbuf *rx_bufs[BURST_SIZE];
+            const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
 
-            if (unlikely(nb_rx == 0))
+            if (unlikely(rx_count == 0))
             {
                 continue;
             }
             else
             {
-
-                for (uint16_t i = 0; i < nb_rx; i++)
-                {
-                    struct rte_mbuf *pkt = bufs[i];
-                    if (database_checker(pkt))
+                port_statistics[0].rx_count += rx_count;
+                for (uint16_t i = 0; i < rx_count; i++)
+                { 
+                    struct rte_mbuf *rx_pkt = rx_bufs[i];
+                    port_statistics[0].rx_size += rte_pktmbuf_pkt_len(rx_pkt);
+                    
+                    if (database_checker(rx_pkt))
                     {
                         printf("Packet Detected in database\n");
+                        
                         // Create a copy of the received packet
-                        struct rte_mbuf *rst_packet_client = rte_pktmbuf_copy(pkt, pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-                        if (rst_packet_client == NULL)
+                        struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+                        if (rst_pkt_client == NULL)
                         {
                             printf("Error copying packet to RST Client\n");
+                            rte_pktmbuf_free(rx_pkt); // Free the original packet
                             continue; // Skip this packet
                         }
-                        struct rte_mbuf *rst_packet_server = rte_pktmbuf_copy(pkt, pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-                        if (rst_packet_server == NULL)
+                        struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+                        if (rst_pkt_server == NULL)
                         {
                             printf("Error copying packet to RST Server\n");
-                            continue;                      
+                            rte_pktmbuf_free(rx_pkt); // Free the original packet
+                            continue;
                         }
 
                         // Apply modifications to the packets
-                        reset_tcp_client(rst_packet_client);
-                        reset_tcp_server(rst_packet_server);
+                        reset_tcp_client(rst_pkt_client);
+                        reset_tcp_server(rst_pkt_server);
 
                         // Transmit modified packets
-                        const uint16_t rst_client_sent = rte_eth_tx_burst(1, 0, &rst_packet_client, 1);
-                        if (rst_client_sent)
+                        const uint16_t rst_client_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_client, 1);
+                        if (rst_client_tx_count == 0)
                         {
+                            printf("Error sending packet to client\n");
+                            port_statistics[1].dropped++;
+                            rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
+                        }
+                        else
+                        {
+                            port_statistics[1].rstClient++;
+                            port_statistics[1].tx_size += rte_pktmbuf_pkt_len(rst_pkt_client);
+                            port_statistics[1].tx_count += rst_client_tx_count;
                             printf("Packet to client sent\n");
                         }
+
+                        const uint16_t rst_server_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_server, 1);
+                        if (rst_server_tx_count == 0)
+                        {
+                            printf("Error sending packet to server\n");
+                            port_statistics[1].dropped++;
+                            rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
+                        }
                         else
                         {
-                            rte_pktmbuf_free(rst_packet_client);
-                        }
-
-                        const uint16_t rst_to_server_sent = rte_eth_tx_burst(1, 0, &rst_packet_server, 1);
-                        if (rst_packet_server)
-                        {
+                            port_statistics[1].rstServer++;
+                            port_statistics[1].tx_size += rte_pktmbuf_pkt_len(rst_pkt_server);
+                            port_statistics[1].tx_count += rst_server_tx_count;
                             printf("Packet to Server sent\n");
                         }
-                        else
+                    }
+                    rte_pktmbuf_free(rx_pkt); // Free the original packet
+                    port_statistics[0].dropped++;
+                    
+                    if (timer_period > 0)
+                    {
+                        /* Advance the timer */
+                        timer_tsc++;
+
+                        /* If the timer has reached its timeout */
+                        if (timer_tsc >= timer_period)
                         {
-                            rte_pktmbuf_free(rst_packet_server);
+                            /* Do this only on the main core */
+                            if (rte_lcore_id() == rte_get_main_lcore())
+                            {
+                                print_stats();
+                            }
+                            /* Reset the timer */
+                            timer_tsc = 0;
                         }
                     }
-                    rte_pktmbuf_free(bufs[i]);
                 }
             }
 
-            rte_pktmbuf_free(*bufs);
+            rte_pktmbuf_free(*rx_bufs);
+            
+            /* If the timer is enabled */
         }
     }
 }
+
 
 /* >8 End Basic forwarding application lcore. */
 
