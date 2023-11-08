@@ -671,7 +671,7 @@ static __rte_noreturn void lcore_main(void)
                 struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
                 if (rst_pkt_client == NULL)
                 {
-                    printf("Error copying packet to RST Client\n");
+                    printf("Error copying packet to RST Client\n" );
                     rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
                 }
                 struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
