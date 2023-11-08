@@ -56,7 +56,14 @@ struct IP_Cache
     bool exists;
 };
 static struct IP_Cache ip_cache[CACHE_SIZE];
-/* basicfwd.c: Basic DPDK skeleton forwarding example. */
+
+struct Domain_Cache {
+    char domain[256];
+    bool result;
+};
+
+static struct Domain_Cache domain_cache[CACHE_SIZE];
+
 
 static volatile bool force_quit;
 
@@ -263,7 +270,21 @@ print_stats(void)
     fflush(stdout);
 }
 
-static inline const char* extractDomainfromHTTPS(struct rte_mbuf *pkt)
+static inline int port_checker(struct rte_mbuf *pkt) {
+    struct rte_ether_hdr *eth_hdr;
+    struct rte_ipv4_hdr *ip_hdr;
+    struct rte_tcp_hdr *tcp_hdr;
+
+    eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
+    ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1); // Skip Ethernet header
+    tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1); // Skip IP header
+
+    uint16_t dest_port = rte_be_to_cpu_16(tcp_hdr->dst_port);
+
+    return dest_port;
+}
+
+static inline char* extractDomainfromHTTPS(struct rte_mbuf *pkt)
 {
     // Extract Ethernet header
     struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
@@ -339,12 +360,8 @@ static inline const char* extractDomainfromHTTPS(struct rte_mbuf *pkt)
 }
 
 
-
-
-
-
 // Function to extract the HTTP host from the packet
-static inline const char* extractDomainfromHTTP(struct rte_mbuf *pkt)
+static inline char* extractDomainfromHTTP(struct rte_mbuf *pkt)
 {
     struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
 
@@ -392,43 +409,6 @@ static inline const char* extractDomainfromHTTP(struct rte_mbuf *pkt)
     return NULL; // Return NULL if the HTTP host is not found or an error occurs.
 }
 
-
-
-// void extract_and_print_tls_sni_extension(struct rte_mbuf *mbuf) {
-//     // Assuming mbuf contains the TLS packet data
-//     uint8_t *data = rte_pktmbuf_mtod(mbuf, uint8_t *);
-
-//     struct tls_handshake_message *handshake_msg = (struct tls_handshake_message *)data;
-
-//     // Check if it's a TLS handshake message
-//     if (handshake_msg->msg_type == 0x16) {
-//         uint16_t msg_length = rte_be_to_cpu_16(*(uint16_t *)&handshake_msg->length);
-
-//         // Check if it's a ServerHello message (type 0x02)
-//         if (data[5] == 0x02) {
-//             // This is a ServerHello message
-
-//             // Extract and print SNI extension
-//             uint8_t *ptr = data + 7;  // Start of ServerHello message
-//             uint16_t remaining_length = msg_length - 4;  // Exclude 4-byte message header
-
-//             while (remaining_length > 0) {
-//                 struct tls_sni_extension *sni_extension = (struct tls_sni_extension *)ptr;
-//                 uint16_t extension_length = rte_be_to_cpu_16(*(uint16_t *)&sni_extension->length);
-
-//                 if (sni_extension->type == 0x00) {
-//                     // SNI extension type 0x00 indicates the hostname extension
-//                     printf("Server Name Indication (SNI): %.*s\n", extension_length, ptr + 5);
-//                     break;  // You may want to handle multiple extensions
-//                 }
-
-//                 // Move to the next extension
-//                 ptr += extension_length + 5;
-//                 remaining_length -= (extension_length + 5);
-//             }
-//         }
-//     }
-// }
 
 /* >8 End of main functional part of port initialization. */
 static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
@@ -550,7 +530,53 @@ void init_database()
     }
 }
 
-static inline bool database_checker(struct rte_mbuf *rx_pkt)
+static inline bool domain_database_checker(const char *domain)
+{
+    if (!db)
+    {
+        // Database is not initialized
+        return false;
+    }
+    // Check the cache first
+    for (int i = 0; i < CACHE_SIZE; i++)
+    {
+        if (strcmp(domain_cache[i].domain, domain) == 0)
+        {
+            // Return the cached result if found
+            return domain_cache[i].result;
+        }
+    }
+    
+    // Prepare an SQL query to check if the domain exists in the database
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT COUNT(*) FROM domains WHERE domain_name = '%s'", domain);
+
+    // Execute the SQL query
+    sqlite3_stmt *stmt;
+    int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+
+    if (result != SQLITE_OK)
+    {
+        // Handle query preparation error
+        printf("Error preparing SQL query: %s\n", sqlite3_errmsg(db));
+        return false;
+    }
+
+    // Execute the query and check if the domain exists in the database
+    int count = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        count = sqlite3_column_int(stmt, 0);
+    }
+
+    // Finalize the statement
+    sqlite3_finalize(stmt);
+
+    return count > 0;
+}
+
+
+static inline bool ip_database_checker(struct rte_mbuf *rx_pkt)
 {
     if (!db)
     {
@@ -631,6 +657,8 @@ static __rte_noreturn void lcore_main(void)
     FILE *f_stat = NULL;
     struct tm *tm_info, *tm_rounded;
     time_t now, rounded;
+    int port_type = 0;
+    char *domain;
 
     /* Check NUMA locality for each port for optimal performance. */
     RTE_ETH_FOREACH_DEV(port)
@@ -658,20 +686,33 @@ static __rte_noreturn void lcore_main(void)
         for (uint16_t i = 0; i < rx_count; i++)
         {
 
-            struct rte_mbuf *rx_pkt = rx_bufs[i];
-            // extractDomainfromHTTPS(rx_pkt);
-            extractDomainfromHTTP(rx_pkt);
+            struct rte_mbuf *rx_pkt = rx_bufs[i]; 
             port_statistics[0].rx_size += rte_pktmbuf_pkt_len(rx_pkt);
+             port_type = port_checker(rx_pkt); 
 
-            if (database_checker(rx_pkt))
+            if(port_type == 443){
+                domain = extractDomainfromHTTPS(rx_pkt);
+                if(domain != NULL){
+                     printf("Domain: %s\n", domain);
+                }
+               
+            }
+            else if(port_type == 80){
+                domain = extractDomainfromHTTP(rx_pkt); 
+                if(domain != NULL){
+                     printf("Domain: %s\n", domain);
+                }
+            }
+            
+           
+            if (ip_database_checker(rx_pkt))
             {
                 printf("Packet Detected in database\n");
-
                 // Create a copy of the received packet
                 struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
                 if (rst_pkt_client == NULL)
                 {
-                    printf("Error copying packet to RST Client\n" );
+                    printf("Error copying packet to RST Client\n");
                     rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
                 }
                 struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
@@ -742,7 +783,7 @@ static __rte_noreturn void lcore_main(void)
 
         /* If the timer is enabled */
 
-        // // // Print Statistcs to file
+        // Print Statistcs to file
         time(&now);
         tm_info = localtime(&now);
         current_sec = tm_info->tm_sec;
