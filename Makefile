@@ -14,12 +14,14 @@ ifneq ($(shell $(PKGCONF) --exists libdpdk && echo 0),0)
 $(error "no installation of DPDK found")
 endif
 
-all: shared
+all: shared stats
 .PHONY: shared static
 shared: build/$(APP)-shared
 	ln -sf $(APP)-shared build/$(APP)
 static: build/$(APP)-static
 	ln -sf $(APP)-static build/$(APP)
+stats:
+	@mkdir -p $@
 
 # Add SQLite3 flags and DPDK
 CFLAGS += -O3 $(shell $(PKGCONF) --cflags libdpdk)

@@ -25,30 +25,24 @@
 #include <rte_mbuf.h>
 #include <rte_tcp.h>
 #include <rte_pdump.h>
-#include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include <inttypes.h>
 #include <arpa/inet.h>
-#include <inttypes.h>
-#include <rte_eal.h>
-#include <rte_ethdev.h>
-#include <rte_cycles.h>
-#include <rte_tcp.h>
-#include <rte_ethdev.h>
-#include <rte_lcore.h>
-#include <rte_mbuf.h>
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <sqlite3.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <unistd.h>   // Include for access() function
-#include <sys/stat.h> // Include for stat() function
+#include <unistd.h> // Include for access() function
+#include <sys/stat.h>
 
 #define RTE_TCP_RST 0x04
 #define RX_RING_SIZE 2048
 #define TX_RING_SIZE 1024
+
+// Define the statistics file name
+#define STAT_FILE "stats/stats"
+#define STAT_FILE_EXT ".csv"
+
+#define HTTP_GET_METHOD "GET"
+#define HTTP_HOST_HEADER "Host: "
 
 #define NUM_MBUFS 8191
 #define MBUF_CACHE_SIZE 250
@@ -64,6 +58,8 @@ struct IP_Cache
 static struct IP_Cache ip_cache[CACHE_SIZE];
 /* basicfwd.c: Basic DPDK skeleton forwarding example. */
 
+static volatile bool force_quit;
+
 /*
  * Initializes a given port using global settings and with the RX buffers
  * coming from the mbuf_pool passed as a parameter.
@@ -75,7 +71,6 @@ static uint16_t timer_period_stats = 1; // 1 second
 static uint16_t timer_period_send = 1;  // 10 minutes
 
 // TDOO: Create struct for packet broker identifier
-
 // Port statistic struct
 struct port_statistics_data
 {
@@ -89,62 +84,6 @@ struct port_statistics_data
     // TODO: add size of packet, throughpout.
 } __rte_cache_aligned;
 struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
-
-static void
-print_stats(void)
-{
-    uint64_t total_packets_dropped, total_packets_tx, total_packets_rx;
-    unsigned int portid;
-
-    total_packets_dropped = 0;
-    total_packets_tx = 0;
-    total_packets_rx = 0;
-
-    const char clr[] = {27, '[', '2', 'J', '\0'};
-    const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
-
-    // Clear screen and move to top left
-    printf("%s%s", clr, topLeft);
-
-    printf("\nRefreshed every %d seconds. "
-           "Send every %d minutes.\n",
-           timer_period_stats, timer_period_send);
-    printf("\nPort statistics ====================================");
-
-    for (portid = 0; portid < 2; portid++)
-    {
-        printf("\nStatistics for port %u ------------------------------"
-               "\nPackets sent count: %18" PRIu64
-               "\nPackets sent size: %19" PRIu64
-               "\nPackets received count: %14" PRIu64
-               "\nPackets received size: %15" PRIu64
-               "\nPackets dropped: %21" PRIu64
-               "\nRST to Client:  %22" PRIu64
-               "\nRST to Server:          %14" PRIu64,
-               portid,
-               port_statistics[portid].tx_count,
-               port_statistics[portid].tx_size,
-               port_statistics[portid].rx_count,
-               port_statistics[portid].rx_size,
-               port_statistics[portid].dropped,
-               port_statistics[portid].rstClient,
-               port_statistics[portid].rstServer);
-
-        total_packets_dropped += port_statistics[portid].dropped;
-        total_packets_tx += port_statistics[portid].tx_count;
-        total_packets_rx += port_statistics[portid].rx_count;
-    }
-    printf("\nAggregate statistics ==============================="
-           "\nTotal packets sent: %18" PRIu64
-           "\nTotal packets received: %14" PRIu64
-           "\nTotal packets dropped: %15" PRIu64,
-           total_packets_tx,
-           total_packets_rx,
-           total_packets_dropped);
-    printf("\n====================================================\n");
-
-    fflush(stdout);
-}
 
 /* Main functional part of port initialization. 8< */
 static inline int
@@ -229,6 +168,261 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 
     return 0;
 }
+
+static FILE *open_file(const char *filename)
+{
+    FILE *f = fopen(filename, "w");
+    if (f == NULL)
+    {
+        printf("Error opening file!\n");
+        exit(1);
+    }
+    return f;
+}
+
+static void print_stats_csv_header(FILE *f)
+{
+    fprintf(f, "ps_id,rst_client,rst_server,rx_count,tx_count,rx_size,tx_size,time,throughput\n"); // Header row
+}
+
+static void print_stats_csv(FILE *f, char *timestamp)
+{
+    // Write data to the CSV file
+    fprintf(f, "%d,%ld,%ld,%ld,%ld,%ld,%ld,%s,%d\n", 1, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[1].tx_count, port_statistics[0].rx_size, port_statistics[1].tx_size, timestamp, 0);
+}
+
+static void clear_stats(void)
+{
+    memset(port_statistics, 0, RTE_MAX_ETHPORTS * sizeof(struct port_statistics_data));
+}
+
+static void
+signal_handler(int signum)
+{
+    if (signum == SIGINT || signum == SIGTERM)
+    {
+        printf("\n\nSignal %d received, preparing to exit...\n",
+               signum);
+        force_quit = true;
+    }
+}
+
+static void
+print_stats(void)
+{
+    uint64_t total_packets_dropped, total_packets_tx, total_packets_rx;
+    unsigned int portid;
+
+    total_packets_dropped = 0;
+    total_packets_tx = 0;
+    total_packets_rx = 0;
+
+    const char clr[] = {27, '[', '2', 'J', '\0'};
+    const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
+
+    // Clear screen and move to top left
+    printf("%s%s", clr, topLeft);
+
+    printf("\nRefreshed every %d seconds. "
+           "Send every %d minutes.\n",
+           timer_period_stats, timer_period_send);
+    printf("\nPort statistics ====================================");
+
+    for (portid = 0; portid < 2; portid++)
+    {
+        printf("\nStatistics for port %u ------------------------------"
+               "\nPackets sent count: %18" PRIu64
+               "\nPackets sent size: %19" PRIu64
+               "\nPackets received count: %14" PRIu64
+               "\nPackets received size: %15" PRIu64
+               "\nPackets dropped: %21" PRIu64
+               "\nRST to Client:  %22" PRIu64
+               "\nRST to Server:          %14" PRIu64,
+               portid,
+               port_statistics[portid].tx_count,
+               port_statistics[portid].tx_size,
+               port_statistics[portid].rx_count,
+               port_statistics[portid].rx_size,
+               port_statistics[portid].dropped,
+               port_statistics[portid].rstClient,
+               port_statistics[portid].rstServer);
+
+        total_packets_dropped += port_statistics[portid].dropped;
+        total_packets_tx += port_statistics[portid].tx_count;
+        total_packets_rx += port_statistics[portid].rx_count;
+    }
+    printf("\nAggregate statistics ==============================="
+           "\nTotal packets sent: %18" PRIu64
+           "\nTotal packets received: %14" PRIu64
+           "\nTotal packets dropped: %15" PRIu64,
+           total_packets_tx,
+           total_packets_rx,
+           total_packets_dropped);
+    printf("\n====================================================\n");
+
+    fflush(stdout);
+}
+
+static inline void extractBytes(struct rte_mbuf *pkt)
+{
+    // Extract Ethernet header
+    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
+
+    // Check if the packet contains an IPv4 packet
+    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
+    {
+        // Extract IPv4 header
+        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+
+        // Check if it's a TCP packet (you may need additional checks to identify TLS specifically)
+        if (ip_hdr->next_proto_id == IPPROTO_TCP)
+        {
+            // Extract TCP header
+            struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((uint8_t *)ip_hdr + sizeof(struct rte_ipv4_hdr));
+
+            // Calculate the offset to the TLS header (if TLS is in use)
+            int tls_offset = (tcp_hdr->data_off & 0xf0) >> 2;
+
+            if (tls_offset > 0)
+            {
+                // Calculate the total length of the TLS payload
+                int tls_payload_length = ntohs(ip_hdr->total_length) - (sizeof(struct rte_ipv4_hdr) + (tcp_hdr->data_off >> 4) * 4);
+
+                if (tls_payload_length > 0)
+                {       
+                        int start_offset = 76;
+                        int end_offset = 77;
+                    if (start_offset >= 0 && end_offset < tls_payload_length)
+                    {
+                        // Extract the TLS payload as a pointer to uint8_t
+                        uint8_t *tls_payload = (uint8_t *)tcp_hdr + tls_offset;
+                        uint16_t combinedValue = (uint16_t)tls_payload[76] << 8 | (uint16_t)tls_payload[77];
+                        // Print the specific range of bytes in the TLS payload
+                        uint16_t type = (uint16_t)tls_payload[82 + combinedValue] << 8 | (uint16_t)tls_payload[83 + combinedValue];
+                        int counter = 82 + combinedValue;
+                        for(;;){
+                            if (type == 0){
+                                uint16_t namelength = (uint16_t)tls_payload[counter + 7] << 8 | (uint16_t)tls_payload[counter + 8];
+                                printf("Name Length: %d\n", namelength);
+                                uint8_t name;
+                                for(int i = 0;i < namelength;i++){
+                                    name = tls_payload[counter + 9 + i];
+                                    printf("%c", name);
+                                }
+                                printf("\n");
+                                break;
+                            }else{
+                                uint16_t length = (uint16_t)tls_payload[counter + 2] << 8 | (uint16_t)tls_payload[counter + 3];
+                                counter += length + 4;
+                                type = (uint16_t)tls_payload[counter] << 8 | (uint16_t)tls_payload[counter + 1];
+                            }
+                        }
+                        
+                        
+                    }
+                    else
+                    {
+                        printf("Invalid byte range specified for the TLS payload\n");
+                    }
+                }
+                else
+                {
+                    printf("No TLS payload found in the packet\n");
+                }
+            }
+            else
+            {
+                printf("No TLS header found in the packet\n");
+            }
+        }
+        else
+        {
+            printf("Packet is not a TCP packet\n");
+        }
+    }
+    else
+    {
+        printf("Packet is not an IPv4 packet\n");
+    }
+}
+
+
+
+// Function to extract the HTTP host from the packet
+static inline void extractAndPrintHttpHost(struct rte_mbuf *pkt)
+{
+    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
+    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
+    {
+        struct rte_ipv4_hdr *ipv4_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+        printf("IPV4 Packet\n");
+        if (ipv4_hdr->next_proto_id == IPPROTO_TCP)
+        {
+            struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((unsigned char *)ipv4_hdr + sizeof(struct rte_ipv4_hdr));
+            printf("TCP Packet\n");
+            // Assuming the HTTP host is in a well-known location within the packet.
+            // You would need to parse the HTTP headers to extract it.
+
+            // For example, you could search for the "Host:" header and extract the host name.
+
+            // Pseudo code for searching "Host:" header:
+            char *payload = (char *)tcp_hdr + ((tcp_hdr->data_off & 0xf0) >> 2);
+            char *host_start = strstr(payload, "Host:");
+            if (host_start != NULL)
+            {
+                printf("Host found\n");
+                char *host_end = strchr(host_start, '\r');
+                if (host_end != NULL)
+                {
+                    printf("Host end found\n");
+                    // Extract the HTTP host.
+                    char host[256];                                              // Assuming a reasonable max size for the host.
+                    snprintf(host, host_end - host_start, "%s", host_start + 6); // Skip "Host: "
+
+                    // Print the extracted HTTP host.
+                    printf("HTTP Host: %s\n", host);
+                }
+            }
+        }
+    }
+}
+
+// void extract_and_print_tls_sni_extension(struct rte_mbuf *mbuf) {
+//     // Assuming mbuf contains the TLS packet data
+//     uint8_t *data = rte_pktmbuf_mtod(mbuf, uint8_t *);
+
+//     struct tls_handshake_message *handshake_msg = (struct tls_handshake_message *)data;
+
+//     // Check if it's a TLS handshake message
+//     if (handshake_msg->msg_type == 0x16) {
+//         uint16_t msg_length = rte_be_to_cpu_16(*(uint16_t *)&handshake_msg->length);
+
+//         // Check if it's a ServerHello message (type 0x02)
+//         if (data[5] == 0x02) {
+//             // This is a ServerHello message
+
+//             // Extract and print SNI extension
+//             uint8_t *ptr = data + 7;  // Start of ServerHello message
+//             uint16_t remaining_length = msg_length - 4;  // Exclude 4-byte message header
+
+//             while (remaining_length > 0) {
+//                 struct tls_sni_extension *sni_extension = (struct tls_sni_extension *)ptr;
+//                 uint16_t extension_length = rte_be_to_cpu_16(*(uint16_t *)&sni_extension->length);
+
+//                 if (sni_extension->type == 0x00) {
+//                     // SNI extension type 0x00 indicates the hostname extension
+//                     printf("Server Name Indication (SNI): %.*s\n", extension_length, ptr + 5);
+//                     break;  // You may want to handle multiple extensions
+//                 }
+
+//                 // Move to the next extension
+//                 ptr += extension_length + 5;
+//                 remaining_length -= (extension_length + 5);
+//             }
+//         }
+//     }
+// }
+
 /* >8 End of main functional part of port initialization. */
 static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
 {
@@ -421,6 +615,15 @@ static __rte_noreturn void lcore_main(void)
     uint16_t port;
     init_database();
     uint64_t timer_tsc = 0;
+    int last_run_stat = 0;
+    int last_run_file = 0;
+    int current_sec;
+    char time_str[80];
+    char time_str_file[80];
+    const char *format = "%Y-%m-%dT%H:%M:%S";
+    FILE *f_stat = NULL;
+    struct tm *tm_info, *tm_rounded;
+    time_t now, rounded;
 
     /* Check NUMA locality for each port for optimal performance. */
     RTE_ETH_FOREACH_DEV(port)
@@ -437,111 +640,163 @@ static __rte_noreturn void lcore_main(void)
     printf("\nCore %u forwarding packets. [Ctrl+C to quit]\n", rte_lcore_id());
 
     /* Main work of the application loop. */
-    for (;;)
+    while (!force_quit)
     {
-        RTE_ETH_FOREACH_DEV(port)
+
+        /* Get a burst of RX packets from the first port of the pair. */
+        struct rte_mbuf *rx_bufs[BURST_SIZE];
+        const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
+
+        port_statistics[0].rx_count += rx_count;
+        for (uint16_t i = 0; i < rx_count; i++)
         {
-            /* Get a burst of RX packets from the first port of the pair. */
-            struct rte_mbuf *rx_bufs[BURST_SIZE];
-            const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
 
-            if (unlikely(rx_count == 0))
+            struct rte_mbuf *rx_pkt = rx_bufs[i];
+            extractBytes(rx_pkt);
+            // extractAndPrintHttpHost(rx_pkt);
+            // extract_and_print_server_domain(rx_pkt);
+            port_statistics[0].rx_size += rte_pktmbuf_pkt_len(rx_pkt);
+
+            if (database_checker(rx_pkt))
             {
-                continue;
-            }
-            else
-            {
-                port_statistics[0].rx_count += rx_count;
-                for (uint16_t i = 0; i < rx_count; i++)
-                { 
-                    struct rte_mbuf *rx_pkt = rx_bufs[i];
-                    port_statistics[0].rx_size += rte_pktmbuf_pkt_len(rx_pkt);
-                    
-                    if (database_checker(rx_pkt))
-                    {
-                        printf("Packet Detected in database\n");
-                        
-                        // Create a copy of the received packet
-                        struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-                        if (rst_pkt_client == NULL)
-                        {
-                            printf("Error copying packet to RST Client\n");
-                            rte_pktmbuf_free(rx_pkt); // Free the original packet
-                            continue; // Skip this packet
-                        }
-                        struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-                        if (rst_pkt_server == NULL)
-                        {
-                            printf("Error copying packet to RST Server\n");
-                            rte_pktmbuf_free(rx_pkt); // Free the original packet
-                            continue;
-                        }
+                printf("Packet Detected in database\n");
 
-                        // Apply modifications to the packets
-                        reset_tcp_client(rst_pkt_client);
-                        reset_tcp_server(rst_pkt_server);
-
-                        // Transmit modified packets
-                        const uint16_t rst_client_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_client, 1);
-                        if (rst_client_tx_count == 0)
-                        {
-                            printf("Error sending packet to client\n");
-                            port_statistics[1].dropped++;
-                            rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
-                        }
-                        else
-                        {
-                            port_statistics[1].rstClient++;
-                            port_statistics[1].tx_size += rte_pktmbuf_pkt_len(rst_pkt_client);
-                            port_statistics[1].tx_count += rst_client_tx_count;
-                            printf("Packet to client sent\n");
-                        }
-
-                        const uint16_t rst_server_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_server, 1);
-                        if (rst_server_tx_count == 0)
-                        {
-                            printf("Error sending packet to server\n");
-                            port_statistics[1].dropped++;
-                            rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
-                        }
-                        else
-                        {
-                            port_statistics[1].rstServer++;
-                            port_statistics[1].tx_size += rte_pktmbuf_pkt_len(rst_pkt_server);
-                            port_statistics[1].tx_count += rst_server_tx_count;
-                            printf("Packet to Server sent\n");
-                        }
-                    }
+                // Create a copy of the received packet
+                struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+                if (rst_pkt_client == NULL)
+                {
+                    printf("Error copying packet to RST Client\n");
+                    rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
+                }
+                struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+                if (rst_pkt_server == NULL)
+                {
+                    printf("Error copying packet to RST Server\n");
                     rte_pktmbuf_free(rx_pkt); // Free the original packet
-                    port_statistics[0].dropped++;
-                    
-                    if (timer_period > 0)
-                    {
-                        /* Advance the timer */
-                        timer_tsc++;
+                }
 
-                        /* If the timer has reached its timeout */
-                        if (timer_tsc >= timer_period)
-                        {
-                            /* Do this only on the main core */
-                            if (rte_lcore_id() == rte_get_main_lcore())
-                            {
-                                print_stats();
-                            }
-                            /* Reset the timer */
-                            timer_tsc = 0;
-                        }
-                    }
+                // Apply modifications to the packets
+                reset_tcp_client(rst_pkt_client);
+                reset_tcp_server(rst_pkt_server);
+
+                // Transmit modified packets
+                const uint16_t rst_client_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_client, 1);
+                if (rst_client_tx_count == 0)
+                {
+                    printf("Error sending packet to client\n");
+                    port_statistics[1].dropped++;
+                    rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
+                }
+                else
+                {
+                    port_statistics[1].rstClient++;
+                    port_statistics[1].tx_size += rte_pktmbuf_pkt_len(rst_pkt_client);
+                    port_statistics[1].tx_count += rst_client_tx_count;
+                    printf("Packet to client sent\n");
+                }
+
+                const uint16_t rst_server_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_server, 1);
+                if (rst_server_tx_count == 0)
+                {
+                    printf("Error sending packet to server\n");
+                    port_statistics[1].dropped++;
+                    rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
+                }
+                else
+                {
+                    port_statistics[1].rstServer++;
+                    port_statistics[1].tx_size += rte_pktmbuf_pkt_len(rst_pkt_server);
+                    port_statistics[1].tx_count += rst_server_tx_count;
+                    printf("Packet to Server sent\n");
                 }
             }
+            rte_pktmbuf_free(rx_pkt); // Free the original packet
+            port_statistics[0].dropped++;
 
-            rte_pktmbuf_free(*rx_bufs);
-            
-            /* If the timer is enabled */
+            // if (timer_period > 0)
+            // {
+            //     /* Advance the timer */
+            //     timer_tsc++;
+
+            //     /* If the timer has reached its timeout */
+            //     if (timer_tsc >= timer_period)
+            //     {
+            //         /* Do this only on the main core */
+            //         if (rte_lcore_id() == rte_get_main_lcore())
+            //         {
+            //             print_stats();
+            //         }
+            //         /* Reset the timer */
+            //         timer_tsc = 0;
+            //     }
+            // }
+        }
+
+        rte_pktmbuf_free(*rx_bufs);
+
+        /* If the timer is enabled */
+
+        // // // Print Statistcs to file
+        time(&now);
+        tm_info = localtime(&now);
+        current_sec = tm_info->tm_sec;
+        if (current_sec % timer_period_stats == 0 && current_sec != last_run_stat)
+        {
+            char *filename = (char *)calloc(100, 100);
+
+            // get the current minute
+            int current_min = tm_info->tm_min;
+
+            // check file
+            if (!f_stat)
+            {
+                int remaining_seconds = current_min % timer_period_send * 60 + current_sec;
+                rounded = now - remaining_seconds;
+                tm_rounded = localtime(&rounded);
+                strftime(time_str_file, sizeof(time_str_file), format, tm_rounded);
+                strcat(filename, STAT_FILE);
+                strcat(filename, time_str_file);
+                strcat(filename, STAT_FILE_EXT);
+                f_stat = open_file(filename);
+                // print the header of the statistics file
+                print_stats_csv_header(f_stat);
+                // free the string
+                free(filename);
+                last_run_file = tm_rounded->tm_min;
+            }
+
+            // convert the time to string
+            strftime(time_str, sizeof(time_str), format, tm_info);
+
+            // print out the stats to csv
+            print_stats_csv(f_stat, time_str);
+            fflush(f_stat);
+
+            // clear the stats
+            clear_stats();
+
+            if (current_min % timer_period_send == 0 && current_min != last_run_file)
+            {
+                strcat(filename, STAT_FILE);
+                strcat(filename, time_str);
+                strcat(filename, STAT_FILE_EXT);
+                f_stat = open_file(filename);
+
+                // print the header of the statistics file
+                print_stats_csv_header(f_stat);
+
+                // free the string
+                free(filename);
+
+                // set the last run file
+                last_run_file = current_min;
+            }
+
+            // Set the last run time
+            last_run_stat = current_sec;
         }
     }
 }
-
 
 /* >8 End Basic forwarding application lcore. */
 
@@ -564,6 +819,14 @@ int main(int argc, char *argv[])
 
     argc -= ret;
     argv += ret;
+
+    // force quit handler
+    force_quit = false;
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+
+    // // Clear the statistics
+    // memset(port_statistics, 0, 32 * sizeof(struct port_statistics_data));
 
     /* Check that there is an even number of ports to send/receive on. */
     nb_ports = rte_eth_dev_count_avail();
