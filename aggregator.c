@@ -12,14 +12,21 @@
 // ======================================================= THE DEFINE =======================================================
 
 // Define constants
-#define MAX_LINE_LENGTH 1024
-#define CSV_FILE_PREFIX "stats"
-#define CSV_FILE_EXTENSION ".csv"
-#define MAX_FILES_TO_STORE 10000
-#define MAX_FILE_NAME_LENGTH 128
+// #define MAX_LINE_LENGTH 1024
+// #define CSV_FILE_PREFIX "stats"
+// #define CSV_FILE_EXTENSION ".csv"
+// #define MAX_FILES_TO_STORE 1000
+// #define MAX_FILE_NAME_LENGTH 128
+u_int32_t MAX_LINE_LENGTH;
+u_int32_t MAX_FILES_TO_STORE;
+u_int32_t MAX_FILE_NAME_LENGTH;
+char CSV_FILE_PREFIX[128];
+char CSV_FILE_EXTENSION[128];
+
 
 // Time period in minutes to send data to the API
-#define TIME_PERIOD_SEND 1
+// #define TIME_PERIOD_SEND 1
+u_int32_t TIME_PERIOD_SEND;
 
 // Aggregator Statistics
 struct aggregator_statistics_data
@@ -29,6 +36,47 @@ struct aggregator_statistics_data
 	int file_pending;
 };
 struct aggregator_statistics_data aggregator_statistics;
+
+// LOAD CONFIG FILE
+int load_config_file()
+{
+	FILE *configFile = fopen("config/aggregator.cfg", "r");
+	if (configFile == NULL) {
+        printf("Error opening configuration file");
+        return 1;
+    }
+
+	char line[256];
+    char key[256];
+    char value[256];
+
+	while (fgets(line, sizeof(line), configFile)) {
+        if (sscanf(line, "%255[^=]= %255[^\n]", key, value) == 2) {
+            if (strcmp(key, "MAX_LINE_LENGTH") == 0) {
+                MAX_LINE_LENGTH = atoi(value);
+				printf("MAX_LINE_LENGTH: %d\n", MAX_LINE_LENGTH);
+            } else if (strcmp(key, "MAX_FILES_TO_STORE") == 0) {
+                MAX_FILES_TO_STORE = atoi(value);
+				printf("MAX_FILES_TO_STORE: %d\n", MAX_FILES_TO_STORE);
+            } else if (strcmp(key, "MAX_FILE_NAME_LENGTH") == 0) {
+                MAX_FILE_NAME_LENGTH = atoi(value);
+				printf("MAX_FILE_NAME_LENGTH: %d\n", MAX_FILE_NAME_LENGTH);
+			} else if (strcmp(key, "CSV_FILE_PREFIX") == 0) {
+				strcpy(CSV_FILE_PREFIX, value);
+				printf("CSV_FILE_PREFIX: %s\n", CSV_FILE_PREFIX);
+            } else if (strcmp(key, "CSV_FILE_EXTENSION") == 0) {
+				strcpy(CSV_FILE_EXTENSION, value);
+				printf("CSV_FILE_EXTENSION: %s\n", CSV_FILE_EXTENSION);
+			} else if (strcmp(key, "TIME_PERIOD_SEND") == 0) {
+				TIME_PERIOD_SEND = atoi(value);
+				printf("TIME_PERIOD_SEND: %d\n", TIME_PERIOD_SEND);
+			}
+        }
+    }
+
+	fclose(configFile);
+    return 0;
+}
 
 // PRINT OUT STATISTICS
 static void
@@ -50,7 +98,7 @@ print_stats(void)
 
 // Function to send data to the API
 int sendToApi(json_t *jsonArray) {
-    const char* apiUrl = "http://192.168.88.251:3000/ps/ps-packet";
+    const char *apiUrl = "http://192.168.88.251:3000/ps/ps-packet";
     int status = 0; // Status to track if sending was successful
 
     CURL* curl = curl_easy_init();
@@ -93,25 +141,36 @@ int sendToApi(json_t *jsonArray) {
 
 // Function to process a CSV row and add it to the JSON array
 void processCSVRow(const char* row, json_t *jsonArray) {
-    int ps_id, tcp_rst_to_server, tcp_rst_to_client, rx_count, tx_count, rx_size, tx_size;
+    char ps_id[16];
+    char rst_client[16];
+    char rst_server[16];
+    char rx_count[16];
+    char tx_count[16];
+    char rx_size[16];
+    char tx_size[16];
     char time[32];
+    char throughput[16];
 
-    sscanf(row, "%d,%d,%d,%d,%d,%d,%d,%31[^\n]", &ps_id, &tcp_rst_to_server, &tcp_rst_to_client, &rx_count, &tx_count, &rx_size, &tx_size, time);
+    // Extract data from the CSV row
+    sscanf(row, "%[^,],%[^,],%[^,],%[^,],%[^,],%[^,],%[^,],%[^,],%[^\n]", 
+        ps_id, rst_client, rst_server, rx_count, tx_count, rx_size, tx_size, time, throughput);
 
     // Create a JSON object for the row
     json_t *jsonRow = json_object();
-    json_object_set_new(jsonRow, "ps_id", json_integer(ps_id));
-    json_object_set_new(jsonRow, "tcp_rst_to_server", json_integer(tcp_rst_to_server));
-    json_object_set_new(jsonRow, "tcp_rst_to_client", json_integer(tcp_rst_to_client));
-    json_object_set_new(jsonRow, "rx_count", json_integer(rx_count));
-    json_object_set_new(jsonRow, "tx_count", json_integer(tx_count));
-    json_object_set_new(jsonRow, "rx_size", json_integer(rx_size));
-    json_object_set_new(jsonRow, "tx_size", json_integer(tx_size));
+    json_object_set_new(jsonRow, "ps_id", json_string(ps_id));
+    json_object_set_new(jsonRow, "rst_client", json_string(rst_client));
+    json_object_set_new(jsonRow, "rst_server", json_string(rst_server));
+    json_object_set_new(jsonRow, "rx_count", json_string(rx_count));
+    json_object_set_new(jsonRow, "tx_count", json_string(tx_count));
+    json_object_set_new(jsonRow, "rx_size", json_string(rx_size));
+    json_object_set_new(jsonRow, "tx_size", json_string(tx_size));
     json_object_set_new(jsonRow, "time", json_string(time));
+    json_object_set_new(jsonRow, "throughput", json_string(throughput));
 
     // Add the JSON object to the array
     json_array_append_new(jsonArray, jsonRow);
 }
+
 
 
 // Function to construct the CSV file path based on the nearest past time
@@ -137,6 +196,12 @@ char* constructCSVFilePath(time_t currentTime) {
 
 int main() {
     int last_sent_minute = -1; // Initialize to an invalid value
+
+    if (load_config_file())
+    {
+        printf("Error loading configuration file");
+        exit(1);
+    }
 
     // Create an array to store filenames that failed to send
     char failedFiles[MAX_FILES_TO_STORE][MAX_FILE_NAME_LENGTH];
