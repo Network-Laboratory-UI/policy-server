@@ -262,194 +262,155 @@ print_stats(void)
 
     fflush(stdout);
 }
-
-static inline void extractBytes(struct rte_mbuf *pkt)
+static inline char* extractDomainfromHTTPS(struct rte_mbuf *pkt)
 {
     // Extract Ethernet header
     struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
 
-    // Check if the packet contains an IPv4 packet
-    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-    {
-        // Extract IPv4 header
-        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-
-        // Check if it's a TCP packet (you may need additional checks to identify TLS specifically)
-        if (ip_hdr->next_proto_id == IPPROTO_TCP)
-        {
-            // Extract TCP header
-            struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((uint8_t *)ip_hdr + sizeof(struct rte_ipv4_hdr));
-
-            // Calculate the offset to the TLS header (if TLS is in use)
-            int tls_offset = (tcp_hdr->data_off & 0xf0) >> 2;
-
-            if (tls_offset > 0)
-            {
-                // Calculate the total length of the TLS payload
-                int tls_payload_length = ntohs(ip_hdr->total_length) - (sizeof(struct rte_ipv4_hdr) + (tcp_hdr->data_off >> 4) * 4);
-
-                if (tls_payload_length > 0)
-                {       
-                        int start_offset = 76;
-                        int end_offset = 77;
-                    if (start_offset >= 0 && end_offset < tls_payload_length)
-                    {
-                        // Extract the TLS payload as a pointer to uint8_t
-                        uint8_t *tls_payload = (uint8_t *)tcp_hdr + tls_offset;
-                        uint16_t combinedValue = (uint16_t)tls_payload[76] << 8 | (uint16_t)tls_payload[77];
-                        // Print the specific range of bytes in the TLS payload
-                        uint16_t type = (uint16_t)tls_payload[82 + combinedValue] << 8 | (uint16_t)tls_payload[83 + combinedValue];
-                        int counter = 82 + combinedValue;
-                        for(;;){
-                            if (type == 0){
-                                uint16_t namelength = (uint16_t)tls_payload[counter + 7] << 8 | (uint16_t)tls_payload[counter + 8];
-                                printf("Name Length: %d\n", namelength);
-                                uint8_t name;
-                                for(int i = 0;i < namelength;i++){
-                                    name = tls_payload[counter + 9 + i];
-                                    printf("%c", name);
-                                }
-                                printf("\n");
-                                break;
-                            }else{
-                                uint16_t length = (uint16_t)tls_payload[counter + 2] << 8 | (uint16_t)tls_payload[counter + 3];
-                                counter += length + 4;
-                                type = (uint16_t)tls_payload[counter] << 8 | (uint16_t)tls_payload[counter + 1];
-                            }
-                        }
-                        
-                        
-                    }
-                    else
-                    {
-                        printf("Invalid byte range specified for the TLS payload\n");
-                    }
-                }
-                else
-                {
-                    printf("No TLS payload found in the packet\n");
-                }
-            }
-            else
-            {
-                printf("No TLS header found in the packet\n");
-            }
-        }
-        else
-        {
-            printf("Packet is not a TCP packet\n");
-        }
-    }
-    else
-    {
+    if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4)) {
         printf("Packet is not an IPv4 packet\n");
+        return NULL;
+    }
+
+    // Extract IPv4 header
+    struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+
+    if (ip_hdr->next_proto_id != IPPROTO_TCP) {
+        printf("Packet is not a TCP packet\n");
+        return NULL;
+    }
+
+    // Extract TCP header
+    struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((uint8_t *)ip_hdr + sizeof(struct rte_ipv4_hdr));
+
+    // Calculate the offset to the TLS header (if TLS is in use)
+    int tls_offset = (tcp_hdr->data_off & 0xf0) >> 2;
+
+    if (tls_offset <= 0) {
+        printf("No TLS header found in the packet\n");
+        return NULL;
+    }
+
+    // Calculate the total length of the TLS payload
+    int tls_payload_length = ntohs(ip_hdr->total_length) - (sizeof(struct rte_ipv4_hdr) + (tcp_hdr->data_off >> 4) * 4);
+
+    if (tls_payload_length <= 0) {
+        printf("No TLS payload found in the packet\n");
+        return NULL;
+    }
+
+    int start_offset = 76;
+    int end_offset = 77;
+
+    if (start_offset < 0 || end_offset >= tls_payload_length) {
+        printf("Invalid byte range specified for the TLS payload\n");
+        return NULL;
+    }
+
+    // Extract the TLS payload as a pointer to uint8_t
+    uint8_t *tls_payload = (uint8_t *)tcp_hdr + tls_offset;
+    uint16_t combinedValue = (uint16_t)tls_payload[start_offset] << 8 | (uint16_t)tls_payload[end_offset];
+
+    // Process the specific range of bytes in the TLS payload
+    int counter = 82 + combinedValue;
+    char extractedName[256]; // Assuming a maximum name length of 256 characters
+    int nameIndex = 0; // Index for the extractedName array
+
+    while (1) {
+        uint16_t type = (uint16_t)tls_payload[counter] << 8 | (uint16_t)tls_payload[counter + 1];
+
+        if (type == 0) {
+            uint16_t namelength = (uint16_t)tls_payload[counter + 7] << 8 | (uint16_t)tls_payload[counter + 8];
+
+            for (int i = 0; i < namelength; i++) {
+                extractedName[nameIndex] = (char)tls_payload[counter + 9 + i];
+                nameIndex++;
+            }
+            extractedName[nameIndex] = '\0'; // Null-terminate the string
+            printf("Name Length: %d\n", namelength);
+            printf("Extracted Name: %s\n", extractedName);
+            return extractedName;
+        } else {
+            uint16_t length = (uint16_t)tls_payload[counter + 2] << 8 | (uint16_t)tls_payload[counter + 3];
+            counter += length + 4;
+        }
     }
 }
-
 
 
 // Function to extract the HTTP host from the packet
-static inline void extractAndPrintHttpHost(struct rte_mbuf *pkt)
+static inline char* extractDomainfromHTTP(struct rte_mbuf *pkt)
 {
     struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
-    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-    {
-        struct rte_ipv4_hdr *ipv4_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-        printf("IPV4 Packet\n");
-        if (ipv4_hdr->next_proto_id == IPPROTO_TCP)
-        {
-            struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((unsigned char *)ipv4_hdr + sizeof(struct rte_ipv4_hdr));
-            printf("TCP Packet\n");
-            // Assuming the HTTP host is in a well-known location within the packet.
-            // You would need to parse the HTTP headers to extract it.
 
-            // For example, you could search for the "Host:" header and extract the host name.
+    if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4)) {
+        printf("Not an IPv4 Packet\n");
+        return NULL;
+    }
 
-            // Pseudo code for searching "Host:" header:
-            char *payload = (char *)tcp_hdr + ((tcp_hdr->data_off & 0xf0) >> 2);
-            char *host_start = strstr(payload, "Host:");
-            if (host_start != NULL)
-            {
-                printf("Host found\n");
-                char *host_end = strchr(host_start, '\r');
-                if (host_end != NULL)
-                {
-                    printf("Host end found\n");
-                    // Extract the HTTP host.
-                    char host[256];                                              // Assuming a reasonable max size for the host.
-                    snprintf(host, host_end - host_start, "%s", host_start + 6); // Skip "Host: "
+    struct rte_ipv4_hdr *ipv4_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
 
-                    // Print the extracted HTTP host.
-                    printf("HTTP Host: %s\n", host);
-                }
+    if (ipv4_hdr->next_proto_id != IPPROTO_TCP) {
+        printf("Not a TCP Packet\n");
+        return NULL;
+    }
+
+    struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((unsigned char *)ipv4_hdr + sizeof(struct rte_ipv4_hdr));
+
+    // Calculate the offset to the HTTP payload
+    int payload_offset = ((tcp_hdr->data_off & 0xf0) >> 2);
+
+    if (payload_offset <= 0) {
+        printf("No HTTP payload found in the packet\n");
+        return NULL;
+    }
+
+    // Pointer to the HTTP payload
+    char *payload = (char *)tcp_hdr + payload_offset;
+    
+    char *host_start = strstr(payload, "Host:");
+    if (host_start != NULL) {
+        char *host_end = strchr(host_start, '\r');
+        if (host_end != NULL) {
+            // Extract the HTTP host.
+            char host[256]; // Assuming a reasonable max size for the host.
+            int host_length = host_end - host_start - 6; // Subtract "Host: "
+            if (host_length > 0 && host_length < 256) {
+                strncpy(host, host_start + 6, host_length);
+                host[host_length] = '\0'; // Null-terminate the string
+                printf("HTTP Host: %s\n", host);
+                return host;
             }
         }
     }
+
+    return NULL; // Return NULL if the HTTP host is not found or an error occurs.
 }
 
-// void extract_and_print_tls_sni_extension(struct rte_mbuf *mbuf) {
-//     // Assuming mbuf contains the TLS packet data
-//     uint8_t *data = rte_pktmbuf_mtod(mbuf, uint8_t *);
-
-//     struct tls_handshake_message *handshake_msg = (struct tls_handshake_message *)data;
-
-//     // Check if it's a TLS handshake message
-//     if (handshake_msg->msg_type == 0x16) {
-//         uint16_t msg_length = rte_be_to_cpu_16(*(uint16_t *)&handshake_msg->length);
-
-//         // Check if it's a ServerHello message (type 0x02)
-//         if (data[5] == 0x02) {
-//             // This is a ServerHello message
-
-//             // Extract and print SNI extension
-//             uint8_t *ptr = data + 7;  // Start of ServerHello message
-//             uint16_t remaining_length = msg_length - 4;  // Exclude 4-byte message header
-
-//             while (remaining_length > 0) {
-//                 struct tls_sni_extension *sni_extension = (struct tls_sni_extension *)ptr;
-//                 uint16_t extension_length = rte_be_to_cpu_16(*(uint16_t *)&sni_extension->length);
-
-//                 if (sni_extension->type == 0x00) {
-//                     // SNI extension type 0x00 indicates the hostname extension
-//                     printf("Server Name Indication (SNI): %.*s\n", extension_length, ptr + 5);
-//                     break;  // You may want to handle multiple extensions
-//                 }
-
-//                 // Move to the next extension
-//                 ptr += extension_length + 5;
-//                 remaining_length -= (extension_length + 5);
-//             }
-//         }
-//     }
-// }
 
 /* >8 End of main functional part of port initialization. */
 static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
 {
-    // Extract Ethernet header
     struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
 
     // Check if it's an IPv4 packet
     if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
     {
-        // Extract IP header
         struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-
-        // Extract TCP header
         struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
 
-        // Swap source and destination MAC addresses
+        // Swap MAC addresses
         struct rte_ether_addr tmp_mac;
         rte_ether_addr_copy(&eth_hdr->dst_addr, &tmp_mac);
         rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
         rte_ether_addr_copy(&tmp_mac, &eth_hdr->src_addr);
 
-        // Swap source and destination IP addresses
+        // Swap IP addresses
         uint32_t tmp_ip = ip_hdr->src_addr;
         ip_hdr->src_addr = ip_hdr->dst_addr;
         ip_hdr->dst_addr = tmp_ip;
 
-        // Swap source and destination TCP ports
+        // Swap TCP ports
         uint16_t tmp_port = tcp_hdr->src_port;
         tcp_hdr->src_port = tcp_hdr->dst_port;
         tcp_hdr->dst_port = tmp_port;
@@ -457,7 +418,6 @@ static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
         // Set TCP flags to reset (RST)
         tcp_hdr->tcp_flags = RTE_TCP_RST;
 
-        // Set the total length of the IP header
         ip_hdr->total_length = rte_cpu_to_be_16(40);
 
         // Extract the acknowledgment number from the TCP header
@@ -466,7 +426,6 @@ static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
         // Set the sequence number in the TCP header to the received acknowledgment number
         tcp_hdr->sent_seq = rte_cpu_to_be_32(ack_number);
 
-        // Reset the acknowledgment number in the TCP header
         tcp_hdr->recv_ack = 0;
 
         // Calculate and set the new IP and TCP checksums (optional)
@@ -474,38 +433,30 @@ static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
         tcp_hdr->cksum = 0;
         ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
         tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
+
+        // Extract TCP flags
+        uint16_t tcp_flags = rte_be_to_cpu_16(tcp_hdr->tcp_flags);
     }
 }
 
 static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 {
-    // Extract Ethernet header
+
     struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
 
-    // Check if it's an IPv4 packet
     if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
     {
-        // Extract IP header
         struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-
-        // Extract TCP header
         struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
 
-        // Increment the TCP sequence number
-        uint32_t sequence_number = rte_be_to_cpu_32(tcp_hdr->sent_seq);
-        sequence_number++;
-        tcp_hdr->sent_seq = rte_cpu_to_be_32(sequence_number);
-
-        // Set the acknowledgment number in the TCP header to the updated sequence number
-        tcp_hdr->recv_ack = tcp_hdr->sent_seq;
-
-        // Set TCP flags to reset (RST)
+        tcp_hdr->sent_seq = rte_cpu_to_be_32(tcp_hdr->sent_seq + 1);
+        tcp_hdr->recv_ack = rte_cpu_to_be_32(tcp_hdr->sent_seq);
         tcp_hdr->tcp_flags = RTE_TCP_RST;
-
-        // Set the total length of the IP header (if needed)
+        // Calculate TCP payload length
+        
         ip_hdr->total_length = rte_cpu_to_be_16(40);
 
-        // Calculate and set the new IP and TCP checksums (optional)
+        // // Calculate and set the new IP and TCP checksums (optional)
         ip_hdr->hdr_checksum = 0;
         tcp_hdr->cksum = 0;
         ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
@@ -627,15 +578,13 @@ static __rte_noreturn void lcore_main(void)
 
     /* Check NUMA locality for each port for optimal performance. */
     RTE_ETH_FOREACH_DEV(port)
-    {
-        if (rte_eth_dev_socket_id(port) >= 0 &&
-            rte_eth_dev_socket_id(port) != (int)rte_socket_id())
-        {
-            printf("WARNING, port %u is on a remote NUMA node to "
-                   "the polling thread. Performance may be suboptimal.\n",
-                   port);
-        }
-    }
+	if (rte_eth_dev_socket_id(port) >= 0 &&
+		rte_eth_dev_socket_id(port) !=
+			(int)rte_socket_id())
+		printf("WARNING, port %u is on remote NUMA node to "
+			   "polling thread.\n\tPerformance will "
+			   "not be optimal.\n",
+			   port);
 
     printf("\nCore %u forwarding packets. [Ctrl+C to quit]\n", rte_lcore_id());
 
@@ -646,17 +595,18 @@ static __rte_noreturn void lcore_main(void)
         /* Get a burst of RX packets from the first port of the pair. */
         struct rte_mbuf *rx_bufs[BURST_SIZE];
         const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
-
         port_statistics[0].rx_count += rx_count;
+
+        if (unlikely(rx_count == 0)){
+            goto SKIP;
+        }
+			
         for (uint16_t i = 0; i < rx_count; i++)
         {
-
+            port_statistics[0].rx_size += rte_pktmbuf_pkt_len(rx_bufs[i]);
             struct rte_mbuf *rx_pkt = rx_bufs[i];
-            // extractBytes(rx_pkt);
-            // extractAndPrintHttpHost(rx_pkt);
-            // extract_and_print_server_domain(rx_pkt);
-            port_statistics[0].rx_size += rte_pktmbuf_pkt_len(rx_pkt);
-
+            // extractDomainfromHTTP(rx_pkt);
+            // extractDomainfromHTTPS(rx_pkt);
             if (database_checker(rx_pkt))
             {
                 printf("Packet Detected in database\n");
@@ -710,32 +660,28 @@ static __rte_noreturn void lcore_main(void)
                     printf("Packet to Server sent\n");
                 }
             }
+            if (timer_period > 0)
+                    {
+                        /* Advance the timer */
+                        timer_tsc++;
+
+                        /* If the timer has reached its timeout */
+                        if (timer_tsc >= timer_period)
+                        {
+                            /* Do this only on the main core */
+                            if (rte_lcore_id() == rte_get_main_lcore())
+                            {
+                                print_stats();
+                            }
+                            /* Reset the timer */
+                            timer_tsc = 0;
+                        }
+                    }
             rte_pktmbuf_free(rx_pkt); // Free the original packet
             port_statistics[0].dropped++;
-
-            // if (timer_period > 0)
-            // {
-            //     /* Advance the timer */
-            //     timer_tsc++;
-
-            //     /* If the timer has reached its timeout */
-            //     if (timer_tsc >= timer_period)
-            //     {
-            //         /* Do this only on the main core */
-            //         if (rte_lcore_id() == rte_get_main_lcore())
-            //         {
-            //             print_stats();
-            //         }
-            //         /* Reset the timer */
-            //         timer_tsc = 0;
-            //     }
-            // }
         }
 
-        rte_pktmbuf_free(*rx_bufs);
-
-        /* If the timer is enabled */
-
+        SKIP:
         // // // Print Statistcs to file
         time(&now);
         tm_info = localtime(&now);
