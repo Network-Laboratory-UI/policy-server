@@ -1,3 +1,4 @@
+// ======================================================= THE LIBRARY =======================================================
 
 // C library
 #include <stdio.h>
@@ -16,6 +17,8 @@
 #include <stdbool.h>
 #include <time.h>
 
+
+
 // DPDK library
 #include <rte_eal.h>
 #include <rte_ethdev.h>
@@ -29,11 +32,11 @@
 #include <rte_ether.h>
 #include <rte_ip.h>
 #include <sqlite3.h>
-#include <unistd.h> 
+#include <unistd.h> // Include for access() function
 #include <sys/stat.h>
 
-#define CACHE_SIZE 1000
-#define RTE_TCP_RST 0x04
+// ======================================================= THE DEFINE =======================================================
+
 
 uint32_t MAX_PACKET_LEN;
 uint32_t RX_RING_SIZE;
@@ -43,13 +46,16 @@ uint32_t MBUF_CACHE_SIZE;
 uint32_t BURST_SIZE;
 uint32_t MAX_TCP_PAYLOAD_LEN;
 
-
+// Define the statistics file name
+// #define STAT_FILE "stats/stats"
+// #define STAT_FILE_EXT ".csv"
 char STAT_FILE[100];
 char STAT_FILE_EXT[100];
 
 static const char *db_path = "/home/dpdk/policy.db";
 static sqlite3 *db;
-
+#define CACHE_SIZE 1000 
+#define RTE_TCP_RST 0x04
 
 // Force quit variable
 static volatile bool force_quit;
@@ -72,20 +78,18 @@ struct port_statistics_data
 	uint64_t rstServer;
 	uint64_t rstClient;
 	uint64_t throughput;
+	uint64_t noMatch;
 } __rte_cache_aligned;
 struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
-
-struct IP_Cache
-{
-	char ip[INET_ADDRSTRLEN];
-	bool exists;
-};
-static struct IP_Cache ip_cache[CACHE_SIZE];
-
 struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
 
-
+struct IP_Cache
+{
+    char ip[INET_ADDRSTRLEN];
+    bool exists;
+};
+static struct IP_Cache ip_cache[CACHE_SIZE];
 
 // ======================================================= THE FUNCTIONS =======================================================
 
@@ -198,35 +202,37 @@ print_stats(void)
 	const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
 
 	// Clear screen and move to top left
-	// printf("%s%s", clr, topLeft);
-	// printf("POLICY SERVER\n");
-	// printf("\nRefreshed every %d seconds. "
-	// 	   "Send every %d minutes.\n",
-	// 	   TIMER_PERIOD_STATS, TIMER_PERIOD_SEND);
-	// printf("\nPort statistics ====================================");
+	printf("%s%s", clr, topLeft);
+	printf("PACKET BORKER\n");
+	printf("\nRefreshed every %d seconds. "
+		   "Send every %d minutes.\n",
+		   TIMER_PERIOD_STATS, TIMER_PERIOD_SEND);
+	printf("\nPort statistics ====================================");
 
-	// for (portid = 0; portid < 2; portid++)
-	// {
-	// 	printf("\nStatistics for port %u ------------------------------"
-	// 		   "\nPackets sent count: %18" PRIu64
-	// 		   "\nPackets sent size: %19" PRIu64
-	// 		   "\nPackets received count: %14" PRIu64
-	// 		   "\nPackets received size: %15" PRIu64
-	// 		   "\nPackets dropped: %21" PRIu64
-	// 		   "\nRST to Client:  %22" PRIu64
-	// 		   "\nRST to Server:          %14" PRIu64
-	// 		   "\nThroughput: %26" PRIu64,
-	// 		   portid,
-	// 		   port_statistics[portid].tx_count,
-	// 		   port_statistics[portid].tx_size,
-	// 		   port_statistics[portid].rx_count,
-	// 		   port_statistics[portid].rx_size,
-	// 		   port_statistics[portid].dropped,
-	// 		   port_statistics[portid].rstClient,
-	// 		   port_statistics[portid].rstServer,
-	// 		   port_statistics[portid].throughput);
-	// }
-	// printf("\n=====================================================");
+	for (portid = 0; portid < 2; portid++)
+	{
+		printf("\nStatistics for port %u ------------------------------"
+			   "\nPackets sent count: %18" PRIu64
+			   "\nPackets sent size: %19" PRIu64
+			   "\nPackets received count: %14" PRIu64
+			   "\nPackets received size: %15" PRIu64
+			   "\nPackets dropped: %21" PRIu64
+			   "\nHTTP GET match: %22" PRIu64
+			   "\nTLS CLIENT HELLO match: %14" PRIu64
+			   "\nNo match: %28" PRIu64
+			   "\nThroughput: %26" PRIu64,
+			   portid,
+			   port_statistics[portid].tx_count,
+			   port_statistics[portid].tx_size,
+			   port_statistics[portid].rx_count,
+			   port_statistics[portid].rx_size,
+			   port_statistics[portid].dropped,
+			   port_statistics[portid].rstClient,
+			   port_statistics[portid].rstServer,
+			   port_statistics[portid].noMatch,
+			   port_statistics[portid].throughput);
+	}
+	printf("\n=====================================================");
 
 	fflush(stdout);
 }
@@ -255,7 +261,7 @@ static void clear_stats(void)
 // CONFIG FILE LOADER
 int load_config_file()
 {
-	FILE *configFile = fopen("config/policyServer.cfg", "r");
+	FILE *configFile = fopen("config/packetBroker.cfg", "r");
 	if (configFile == NULL)
 	{
 		printf("Error opening configuration file");
@@ -432,406 +438,89 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 		*last_run_stat = current_sec;
 	}
 }
-static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
-{
-	// Extract Ethernet header
-	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
-
-	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-	{
-		printf("Packet is not an IPv4 packet\n");
-		return NULL;
-	}
-
-	// Extract IPv4 header
-	struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-
-	if (ip_hdr->next_proto_id != IPPROTO_TCP)
-	{
-		printf("Packet is not a TCP packet\n");
-		return NULL;
-	}
-
-	// Extract TCP header
-	struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((uint8_t *)ip_hdr + sizeof(struct rte_ipv4_hdr));
-
-	// Calculate the offset to the TLS header (if TLS is in use)
-	int tls_offset = (tcp_hdr->data_off & 0xf0) >> 2;
-
-	if (tls_offset <= 0)
-	{
-		printf("No TLS header found in the packet\n");
-		return NULL;
-	}
-
-	// Calculate the total length of the TLS payload
-	int tls_payload_length = ntohs(ip_hdr->total_length) - (sizeof(struct rte_ipv4_hdr) + (tcp_hdr->data_off >> 4) * 4);
-
-	if (tls_payload_length <= 0)
-	{
-		printf("No TLS payload found in the packet\n");
-		return NULL;
-	}
-
-	int start_offset = 76;
-	int end_offset = 77;
-
-	if (start_offset < 0 || end_offset >= tls_payload_length)
-	{
-		printf("Invalid byte range specified for the TLS payload\n");
-		return NULL;
-	}
-
-	// Extract the TLS payload as a pointer to uint8_t
-	uint8_t *tls_payload = (uint8_t *)tcp_hdr + tls_offset;
-	uint16_t combinedValue = (uint16_t)tls_payload[start_offset] << 8 | (uint16_t)tls_payload[end_offset];
-
-	// Process the specific range of bytes in the TLS payload
-	int counter = 82 + combinedValue;
-	char extractedName[256]; // Assuming a maximum name length of 256 characters
-	int nameIndex = 0;		 // Index for the extractedName array
-
-	while (1)
-	{
-		uint16_t type = (uint16_t)tls_payload[counter] << 8 | (uint16_t)tls_payload[counter + 1];
-
-		if (type == 0)
-		{
-			uint16_t namelength = (uint16_t)tls_payload[counter + 7] << 8 | (uint16_t)tls_payload[counter + 8];
-
-			for (int i = 0; i < namelength; i++)
-			{
-				extractedName[nameIndex] = (char)tls_payload[counter + 9 + i];
-				nameIndex++;
-			}
-			extractedName[nameIndex] = '\0'; // Null-terminate the string
-			printf("Name Length: %d\n", namelength);
-			printf("Extracted Name: %s\n", extractedName);
-			return extractedName;
-		}
-		else
-		{
-			uint16_t length = (uint16_t)tls_payload[counter + 2] << 8 | (uint16_t)tls_payload[counter + 3];
-			counter += length + 4;
-		}
-	}
-}
-
-// Function to extract the HTTP host from the packet
-static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
-{
-	printf("From HTTP Extract");
-	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
-
-	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-	{
-		printf("Not an IPv4 Packet\n");
-		return NULL;
-	}
-
-	struct rte_ipv4_hdr *ipv4_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-
-	if (ipv4_hdr->next_proto_id != IPPROTO_TCP)
-	{
-		printf("Not a TCP Packet\n");
-		return NULL;
-	}
-
-	struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((unsigned char *)ipv4_hdr + sizeof(struct rte_ipv4_hdr));
-
-	// Calculate the offset to the HTTP payload
-	int payload_offset = ((tcp_hdr->data_off & 0xf0) >> 2);
-
-	if (payload_offset <= 0)
-	{
-		printf("No HTTP payload found in the packet\n");
-		return NULL;
-	}
-
-	// Pointer to the HTTP payload
-	char *payload = (char *)tcp_hdr + payload_offset;
-
-	char *host_start = strstr(payload, "Host:");
-	if (host_start != NULL)
-	{
-		char *host_end = strchr(host_start, '\r');
-		if (host_end != NULL)
-		{
-			// Extract the HTTP host.
-			char host[256];								 // Assuming a reasonable max size for the host.
-			int host_length = host_end - host_start - 6; // Subtract "Host: "
-			if (host_length > 0 && host_length < 256)
-			{
-				strncpy(host, host_start + 6, host_length);
-				host[host_length] = '\0'; // Null-terminate the string
-				printf("HTTP Host: %s\n", host);
-				return host;
-			}
-		}
-	}
-
-	return NULL; // Return NULL if the HTTP host is not found or an error occurs.
-}
 
 static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
 {
-	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
+    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
 
-	// Check if it's an IPv4 packet
-	if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-	{
-		struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-		struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
+    // Check if it's an IPv4 packet
+    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
+    {
+        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+        struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
 
-		// Swap MAC addresses
-		struct rte_ether_addr tmp_mac;
-		rte_ether_addr_copy(&eth_hdr->dst_addr, &tmp_mac);
-		rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
-		rte_ether_addr_copy(&tmp_mac, &eth_hdr->src_addr);
+        // Swap MAC addresses
+        struct rte_ether_addr tmp_mac;
+        rte_ether_addr_copy(&eth_hdr->dst_addr, &tmp_mac);
+        rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
+        rte_ether_addr_copy(&tmp_mac, &eth_hdr->src_addr);
 
-		// Swap IP addresses
-		uint32_t tmp_ip = ip_hdr->src_addr;
-		ip_hdr->src_addr = ip_hdr->dst_addr;
-		ip_hdr->dst_addr = tmp_ip;
+        // Swap IP addresses
+        uint32_t tmp_ip = ip_hdr->src_addr;
+        ip_hdr->src_addr = ip_hdr->dst_addr;
+        ip_hdr->dst_addr = tmp_ip;
 
-		// Swap TCP ports
-		uint16_t tmp_port = tcp_hdr->src_port;
-		tcp_hdr->src_port = tcp_hdr->dst_port;
-		tcp_hdr->dst_port = tmp_port;
+        // Swap TCP ports
+        uint16_t tmp_port = tcp_hdr->src_port;
+        tcp_hdr->src_port = tcp_hdr->dst_port;
+        tcp_hdr->dst_port = tmp_port;
 
-		// Set TCP flags to reset (RST)
-		tcp_hdr->tcp_flags = RTE_TCP_RST;
+        // Set TCP flags to reset (RST)
+        tcp_hdr->tcp_flags = RTE_TCP_RST;
 
-		ip_hdr->total_length = rte_cpu_to_be_16(40);
+        ip_hdr->total_length = rte_cpu_to_be_16(40);
 
-		// Extract the acknowledgment number from the TCP header
-		uint32_t ack_number = rte_be_to_cpu_32(tcp_hdr->recv_ack);
+        // Extract the acknowledgment number from the TCP header
+        uint32_t ack_number = rte_be_to_cpu_32(tcp_hdr->recv_ack);
 
-		// Set the sequence number in the TCP header to the received acknowledgment number
-		tcp_hdr->sent_seq = rte_cpu_to_be_32(ack_number);
+        // Set the sequence number in the TCP header to the received acknowledgment number
+        tcp_hdr->sent_seq = rte_cpu_to_be_32(ack_number);
 
-		tcp_hdr->recv_ack = 0;
+        tcp_hdr->recv_ack = 0;
 
-		// Calculate and set the new IP and TCP checksums (optional)
-		ip_hdr->hdr_checksum = 0;
-		tcp_hdr->cksum = 0;
-		ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
-		tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
+        // Calculate and set the new IP and TCP checksums (optional)
+        ip_hdr->hdr_checksum = 0;
+        tcp_hdr->cksum = 0;
+        ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
+        tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
 
-		// Extract TCP flags
-		uint16_t tcp_flags = rte_be_to_cpu_16(tcp_hdr->tcp_flags);
-	}
+        // Extract TCP flags
+        uint16_t tcp_flags = rte_be_to_cpu_16(tcp_hdr->tcp_flags);
+    }
 }
 
 static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 {
 
-	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
+    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
 
-	if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-	{
-		struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-		struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
+    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
+    {
+        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+        struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
 
-		tcp_hdr->sent_seq = rte_cpu_to_be_32(tcp_hdr->sent_seq + 1);
-		tcp_hdr->recv_ack = rte_cpu_to_be_32(tcp_hdr->sent_seq);
-		tcp_hdr->tcp_flags = RTE_TCP_RST;
-		// Calculate TCP payload length
+        tcp_hdr->sent_seq = rte_cpu_to_be_32(tcp_hdr->sent_seq + 1);
+        tcp_hdr->recv_ack = rte_cpu_to_be_32(tcp_hdr->sent_seq);
+        tcp_hdr->tcp_flags = RTE_TCP_RST;
+        // Calculate TCP payload length
+        
+        ip_hdr->total_length = rte_cpu_to_be_16(40);
 
-		ip_hdr->total_length = rte_cpu_to_be_16(40);
-
-		// // Calculate and set the new IP and TCP checksums (optional)
-		ip_hdr->hdr_checksum = 0;
-		tcp_hdr->cksum = 0;
-		ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
-		tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
-	}
-}
-
-void init_database()
-{
-	// Check if the database file exists
-	if (access(db_path, F_OK) != -1)
-	{
-		// Database file exists, open it
-		if (sqlite3_open(db_path, &db) != SQLITE_OK)
-		{
-			// Handle database opening error
-			printf("Error opening the database: %s\n", sqlite3_errmsg(db));
-			// You may want to exit or return an error code here
-		}
-	}
-	else
-	{
-		// Database file does not exist, create it
-		if (sqlite3_open(db_path, &db) != SQLITE_OK)
-		{
-			// Handle database creation error
-			printf("Error creating the database: %s\n", sqlite3_errmsg(db));
-			// You may want to exit or return an error code here
-		}
-		else
-		{
-			// Initialize the database schema if needed
-			sqlite3_exec(db, "CREATE TABLE policies (ip_address TEXT)", NULL, 0, NULL);
-		}
-	}
-}
-
-static inline bool database_checker(struct rte_mbuf *rx_pkt)
-{
-	if (!db)
-	{
-		// Database is not initialized
-		return false;
-	}
-
-	// Extract the destination IP address from the received packet (assuming IPv4)
-	struct rte_ipv4_hdr *ip_hdr = rte_pktmbuf_mtod_offset(rx_pkt, struct rte_ipv4_hdr *, sizeof(struct rte_ether_hdr));
-	char dest_ip_str[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &ip_hdr->dst_addr, dest_ip_str, INET_ADDRSTRLEN);
-
-	// Check the cache first
-	for (int i = 0; i < CACHE_SIZE; i++)
-	{
-		if (ip_cache[i].exists && strcmp(dest_ip_str, ip_cache[i].ip) == 0)
-		{
-			return true; // IP found in cache
-		}
-	}
-
-	// Prepare an SQL query to check if the destination IP exists in the database
-	char query[256];
-	snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE ip_address = '%s'", dest_ip_str);
-
-	// Execute the SQL query
-	sqlite3_stmt *stmt;
-	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
-
-	if (result != SQLITE_OK)
-	{
-		// Handle query preparation error
-		printf("Error preparing SQL query: %s\n", sqlite3_errmsg(db));
-		return false;
-	}
-
-	// Execute the query and check if the destination IP exists in the database
-	int count = 0;
-	if (sqlite3_step(stmt) == SQLITE_ROW)
-	{
-		count = sqlite3_column_int(stmt, 0);
-	}
-
-	// Finalize the statement
-	sqlite3_finalize(stmt);
-
-	// Cache the result
-	for (int i = 0; i < CACHE_SIZE; i++)
-	{
-		if (!ip_cache[i].exists)
-		{
-			strncpy(ip_cache[i].ip, dest_ip_str, INET_ADDRSTRLEN);
-			ip_cache[i].exists = (count > 0);
-			break;
-		}
-	}
-
-	return count > 0;
+        // // Calculate and set the new IP and TCP checksums (optional)
+        ip_hdr->hdr_checksum = 0;
+        tcp_hdr->cksum = 0;
+        ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
+        tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
+    }
 }
 
 // ======================================================= THE LCORE FUNCTION =======================================================
-static inline void
-lcore_main_process(void)
-{
-	// initialization
-	uint16_t port;
-	init_database();
-	uint64_t timer_tsc = 0;
-
-	/*
-	 * Check that the port is on the same NUMA node as the polling thread
-	 * for best performance.
-	 */
-	RTE_ETH_FOREACH_DEV(port)
-	if (rte_eth_dev_socket_id(port) >= 0 &&
-		rte_eth_dev_socket_id(port) !=
-			(int)rte_socket_id())
-		printf("WARNING, port %u is on remote NUMA node to "
-			   "polling thread.\n\tPerformance will "
-			   "not be optimal.\n",
-			   port);
-
-	printf("\nCore %u forwarding packets. [Ctrl+C to quit]\n",
-		   rte_lcore_id());
-
-	// Main work of application loop
-	while (!force_quit)
-	{
-
-		/* Get a burst of RX packets from the first port of the pair. */
-		struct rte_mbuf *rx_bufs[BURST_SIZE];
-		const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
-
-		for (uint16_t i = 0; i < rx_count; i++)
-		{
-			struct rte_mbuf *rx_pkt = rx_bufs[i];
-			// extractDomainfromHTTP(rx_pkt);
-			// extractDomainfromHTTPS(rx_pkt);
-			if (database_checker(rx_pkt))
-			{
-
-				// Create a copy of the received packet
-				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-				if (rst_pkt_client == NULL)
-				{
-					printf("Error copying packet to RST Client\n");
-					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
-				}
-				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-				if (rst_pkt_server == NULL)
-				{
-					printf("Error copying packet to RST Server\n");
-					rte_pktmbuf_free(rx_pkt); // Free the original packet
-				}
-
-				// Apply modifications to the packets
-				reset_tcp_client(rst_pkt_client);
-				reset_tcp_server(rst_pkt_server);
-
-				// Transmit modified packets
-				const uint16_t rst_client_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_client, 1);
-				if (rst_client_tx_count == 0)
-				{
-					printf("Error sending packet to client\n");
-					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
-				}
-				else
-				{
-					port_statistics[1].rstClient++;
-				}
-
-				const uint16_t rst_server_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_server, 1);
-				if (rst_server_tx_count == 0)
-				{
-					printf("Error sending packet to server\n");
-					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
-				}
-				else
-				{
-					port_statistics[1].rstServer++;
-				}
-			}
-			rte_pktmbuf_free(rx_pkt); // Free the original packet
-		}
-	}
-}
-
 static inline void
 lcore_stats_process(void)
 {
 	// Variable declaration
 	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc; // for timestamp
-	const uint64_t drain_tsc = rte_get_tsc_hz() / 1000;
+	const uint64_t drain_tsc = rte_get_tsc_hz()/1000;
 	int last_run_stat = 0;
 	int last_run_file = 0;
 	uint64_t start_tx_size_0 = 0, end_tx_size_0 = 0;
@@ -896,12 +585,199 @@ lcore_stats_process(void)
 
 					// Reset the timer
 					timer_tsc = 0;
+
+					
 				}
 			}
 			// Reset the previous timestamp
 			prev_tsc = cur_tsc;
 		}
 	}
+}
+
+void init_database()
+{
+    // Check if the database file exists
+    if (access(db_path, F_OK) != -1)
+    {
+        // Database file exists, open it
+        if (sqlite3_open(db_path, &db) != SQLITE_OK)
+        {
+            // Handle database opening error
+            printf("Error opening the database: %s\n", sqlite3_errmsg(db));
+            // You may want to exit or return an error code here
+        }
+    }
+    else
+    {
+        // Database file does not exist, create it
+        if (sqlite3_open(db_path, &db) != SQLITE_OK)
+        {
+            // Handle database creation error
+            printf("Error creating the database: %s\n", sqlite3_errmsg(db));
+            // You may want to exit or return an error code here
+        }
+        else
+        {
+            // Initialize the database schema if needed
+            sqlite3_exec(db, "CREATE TABLE policies (ip_address TEXT)", NULL, 0, NULL);
+        }
+    }
+}
+
+
+static inline bool database_checker(struct rte_mbuf *rx_pkt)
+{
+    if (!db)
+    {
+        // Database is not initialized
+        return false;
+    }
+
+    // Extract the destination IP address from the received packet (assuming IPv4)
+    struct rte_ipv4_hdr *ip_hdr = rte_pktmbuf_mtod_offset(rx_pkt, struct rte_ipv4_hdr *, sizeof(struct rte_ether_hdr));
+    char dest_ip_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &ip_hdr->dst_addr, dest_ip_str, INET_ADDRSTRLEN);
+
+    // Check the cache first
+    for (int i = 0; i < CACHE_SIZE; i++)
+    {
+        if (ip_cache[i].exists && strcmp(dest_ip_str, ip_cache[i].ip) == 0)
+        {
+            return true; // IP found in cache
+        }
+    }
+
+    // Prepare an SQL query to check if the destination IP exists in the database
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE ip_address = '%s'", dest_ip_str);
+
+    // Execute the SQL query
+    sqlite3_stmt *stmt;
+    int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+
+    if (result != SQLITE_OK)
+    {
+        // Handle query preparation error
+        printf("Error preparing SQL query: %s\n", sqlite3_errmsg(db));
+        return false;
+    }
+
+    // Execute the query and check if the destination IP exists in the database
+    int count = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        count = sqlite3_column_int(stmt, 0);
+    }
+
+    // Finalize the statement
+    sqlite3_finalize(stmt);
+
+    // Cache the result
+    for (int i = 0; i < CACHE_SIZE; i++)
+    {
+        if (!ip_cache[i].exists)
+        {
+            strncpy(ip_cache[i].ip, dest_ip_str, INET_ADDRSTRLEN);
+            ip_cache[i].exists = (count > 0);
+            break;
+        }
+    }
+
+    return count > 0;
+}
+
+// ======================================================= THE LCORE FUNCTION =======================================================
+static inline void
+lcore_main_process(void)
+{
+	// initialization
+	  uint16_t port;
+    init_database();
+    uint64_t timer_tsc = 0;
+
+	/*
+	 * Check that the port is on the same NUMA node as the polling thread
+	 * for best performance.
+	 */
+	RTE_ETH_FOREACH_DEV(port)
+	if (rte_eth_dev_socket_id(port) >= 0 &&
+		rte_eth_dev_socket_id(port) !=
+			(int)rte_socket_id())
+		printf("WARNING, port %u is on remote NUMA node to "
+			   "polling thread.\n\tPerformance will "
+			   "not be optimal.\n",
+			   port);
+
+	printf("\nCore %u forwarding packets. [Ctrl+C to quit]\n",
+		   rte_lcore_id());
+
+	// Main work of application loop
+	 while (!force_quit)
+    {
+
+        /* Get a burst of RX packets from the first port of the pair. */
+        struct rte_mbuf *rx_bufs[BURST_SIZE];
+        const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
+
+			
+        for (uint16_t i = 0; i < rx_count; i++)
+        {
+            struct rte_mbuf *rx_pkt = rx_bufs[i];
+            // extractDomainfromHTTP(rx_pkt);
+            // extractDomainfromHTTPS(rx_pkt);
+            if (database_checker(rx_pkt))
+            {
+                printf("Packet Detected in database\n");
+
+                // Create a copy of the received packet
+                struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+                if (rst_pkt_client == NULL)
+                {
+                    printf("Error copying packet to RST Client\n");
+                    rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
+                }
+                struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+                if (rst_pkt_server == NULL)
+                {
+                    printf("Error copying packet to RST Server\n");
+                    rte_pktmbuf_free(rx_pkt); // Free the original packet
+                }
+
+                // Apply modifications to the packets
+                reset_tcp_client(rst_pkt_client);
+                reset_tcp_server(rst_pkt_server);
+
+                // Transmit modified packets
+                const uint16_t rst_client_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_client, 1);
+                if (rst_client_tx_count == 0)
+                {
+                    printf("Error sending packet to client\n");
+                    rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
+                }
+                else
+                {
+                    port_statistics[1].rstClient++;
+                    printf("Packet to client sent\n");
+                }
+
+                const uint16_t rst_server_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_server, 1);
+                if (rst_server_tx_count == 0)
+                {
+                    printf("Error sending packet to server\n");
+                    rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
+                }
+                else
+                {
+                    port_statistics[1].rstServer++;
+                    printf("Packet to Server sent\n");
+                }
+            }
+            rte_pktmbuf_free(rx_pkt); // Free the original packet
+        }
+
+        
+    }
 }
 
 // ======================================================= THE MAIN FUNCTION =======================================================
@@ -1002,3 +878,4 @@ int main(int argc, char *argv[])
 	rte_eal_cleanup();
 }
 
+// END OF MAIN FUNCTION
