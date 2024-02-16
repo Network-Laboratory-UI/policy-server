@@ -432,93 +432,97 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 		*last_run_stat = current_sec;
 	}
 }
-static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
+static inline char* extractDomainfromHTTPS(struct rte_mbuf *pkt)
 {
-	// Extract Ethernet header
-	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
+    // Extract Ethernet header
+    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
 
-	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-	{
-		printf("Packet is not an IPv4 packet\n");
-		return NULL;
-	}
+    if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
+    {
+        printf("Packet is not an IPv4 packet\n");
+        return NULL;
+    }
 
-	// Extract IPv4 header
-	struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+    // Extract IPv4 header
+    struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
 
-	if (ip_hdr->next_proto_id != IPPROTO_TCP)
-	{
-		printf("Packet is not a TCP packet\n");
-		return NULL;
-	}
+    if (ip_hdr->next_proto_id != IPPROTO_TCP)
+    {
+        printf("Packet is not a TCP packet\n");
+        return NULL;
+    }
 
-	// Extract TCP header
-	struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((uint8_t *)ip_hdr + sizeof(struct rte_ipv4_hdr));
+    // Extract TCP header
+    struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)((uint8_t *)ip_hdr + sizeof(struct rte_ipv4_hdr));
 
-	// Calculate the offset to the TLS header (if TLS is in use)
-	int tls_offset = (tcp_hdr->data_off & 0xf0) >> 2;
+    // Calculate the offset to the TLS header (if TLS is in use)
+    int tls_offset = (tcp_hdr->data_off & 0xf0) >> 2;
 
-	if (tls_offset <= 0)
-	{
-		printf("No TLS header found in the packet\n");
-		return NULL;
-	}
+    if (tls_offset <= 0)
+    {
+        printf("No TLS header found in the packet\n");
+        return NULL;
+    }
 
-	// Calculate the total length of the TLS payload
-	int tls_payload_length = ntohs(ip_hdr->total_length) - (sizeof(struct rte_ipv4_hdr) + (tcp_hdr->data_off >> 4) * 4);
+    // Calculate the total length of the TLS payload
+    int tls_payload_length = ntohs(ip_hdr->total_length) - (sizeof(struct rte_ipv4_hdr) + (tcp_hdr->data_off >> 4) * 4);
 
-	if (tls_payload_length <= 0)
-	{
-		printf("No TLS payload found in the packet\n");
-		return NULL;
-	}
+    if (tls_payload_length <= 0)
+    {
+        printf("No TLS payload found in the packet\n");
+        return NULL;
+    }
 
-	int start_offset = 76;
-	int end_offset = 77;
+    int start_offset = 76;
+    int end_offset = 77;
 
-	if (start_offset < 0 || end_offset >= tls_payload_length)
-	{
-		printf("Invalid byte range specified for the TLS payload\n");
-		return NULL;
-	}
+    if (start_offset < 0 || end_offset >= tls_payload_length)
+    {
+        printf("Invalid byte range specified for the TLS payload\n");
+        return NULL;
+    }
 
-	// Extract the TLS payload as a pointer to uint8_t
-	uint8_t *tls_payload = (uint8_t *)tcp_hdr + tls_offset;
-	uint16_t combinedValue = (uint16_t)tls_payload[start_offset] << 8 | (uint16_t)tls_payload[end_offset];
+    // Extract the TLS payload as a pointer to uint8_t
+    uint8_t *tls_payload = (uint8_t *)tcp_hdr + tls_offset;
+    uint16_t combinedValue = (uint16_t)tls_payload[start_offset] << 8 | (uint16_t)tls_payload[end_offset];
 
-	// Process the specific range of bytes in the TLS payload
-	int counter = 82 + combinedValue;
-	char extractedName[256]; // Assuming a maximum name length of 256 characters
-	int nameIndex = 0;		 // Index for the extractedName array
+    // Process the specific range of bytes in the TLS payload
+    int counter = 82 + combinedValue;
+    char extractedName[256]; // Assuming a maximum name length of 256 characters
+    int nameIndex = 0;        // Index for the extractedName array
 
-	while (1)
-	{
-		uint16_t type = (uint16_t)tls_payload[counter] << 8 | (uint16_t)tls_payload[counter + 1];
+    while (1)
+    {
+        uint16_t type = (uint16_t)tls_payload[counter] << 8 | (uint16_t)tls_payload[counter + 1];
 
-		if (type == 0)
-		{
-			uint16_t namelength = (uint16_t)tls_payload[counter + 7] << 8 | (uint16_t)tls_payload[counter + 8];
+        if (type == 0)
+        {
+            uint16_t namelength = (uint16_t)tls_payload[counter + 7] << 8 | (uint16_t)tls_payload[counter + 8];
 
-			for (int i = 0; i < namelength; i++)
-			{
-				extractedName[nameIndex] = (char)tls_payload[counter + 9 + i];
-				nameIndex++;
-			}
-			extractedName[nameIndex] = '\0'; // Null-terminate the string
-			printf("Name Length: %d\n", namelength);
-			printf("Extracted Name: %s\n", extractedName);
-			return extractedName;
-		}
-		else
-		{
-			uint16_t length = (uint16_t)tls_payload[counter + 2] << 8 | (uint16_t)tls_payload[counter + 3];
-			counter += length + 4;
-		}
-	}
+            for (int i = 0; i < namelength; i++)
+            {
+                extractedName[nameIndex] = (char)tls_payload[counter + 9 + i];
+                nameIndex++;
+            }
+            extractedName[nameIndex] = '\0'; // Null-terminate the string
+            printf("Name Length: %d\n", namelength);
+            printf("Extracted Name: %s\n", extractedName);
+
+            // Dynamically allocate memory for the string to return
+            char *result = (char *)malloc(strlen(extractedName) + 1);
+            strcpy(result, extractedName);
+            return result;
+        }
+        else
+        {
+            uint16_t length = (uint16_t)tls_payload[counter + 2] << 8 | (uint16_t)tls_payload[counter + 3];
+            counter += length + 4;
+        }
+    }
 }
 
 // Function to extract the HTTP host from the packet
-static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
+static inline char extractDomainfromHTTP(struct rte_mbuf *pkt)
 {
 	printf("From HTTP Extract");
 	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
@@ -739,14 +743,18 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 	return count > 0;
 }
 
-static inline bool domain_checker(char domain)
+static inline bool domain_checker(char* domain)
 {
+	if(domain == NULL)
+	{
+		return false;
+	}
+
 	if (!db)
 	{
 		// Database is not initialized
 		return false;
 	}
-
 	
 	printf("Domain: %s\n", domain);
 	// Prepare an SQL query to check if the destination IP exists in the database
@@ -773,8 +781,7 @@ static inline bool domain_checker(char domain)
 
 	// Finalize the statement
 	sqlite3_finalize(stmt);
-
-
+	printf("Count: %d\n", count);
 	return count > 0;
 }
 
@@ -783,7 +790,7 @@ static inline void
 lcore_main_process(void)
 {
 	// initialization
-	char extractedName;
+	char* extractedName;
 	uint16_t port;
 	init_database();
 	uint64_t timer_tsc = 0;
@@ -816,9 +823,10 @@ lcore_main_process(void)
 		{
 			struct rte_mbuf *rx_pkt = rx_bufs[i];
 			// extractDomainfromHTTP(rx_pkt);
-			extractedName = extractDomainfromHTTPS(rx_pkt);
-			// uint64_t start_tsc = rte_rdtsc();
-			if (domain_checker(extractedName))
+			// extractedName = extractDomainfromHTTPS(rx_pkt);
+			// printf("Extracted Name333333: %s\n", extractedName);
+			uint64_t start_tsc = rte_rdtsc();
+			if (domain_checker(extractDomainfromHTTPS(rx_pkt)))
 			{
 
 				// Create a copy of the received packet
@@ -862,9 +870,9 @@ lcore_main_process(void)
 					port_statistics[1].rstServer++;
 				}
 			}
-			// uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
-            // uint64_t processing_time = end_tsc - start_tsc;
-            // printf("Processing time: %" PRIu64 " cycles\n", processing_time);
+			uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
+            uint64_t processing_time = end_tsc - start_tsc;
+            printf("Processing time: %" PRIu64 " cycles\n", processing_time);
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
 		}
 	}
