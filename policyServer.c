@@ -15,7 +15,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <time.h>
-
+#include <rte_cycles.h>
 // DPDK library
 #include <rte_eal.h>
 #include <rte_ethdev.h>
@@ -673,12 +673,12 @@ void init_database()
 		else
 		{
 			// Initialize the database schema if needed
-			sqlite3_exec(db, "CREATE TABLE policies (ip_address TEXT)", NULL, 0, NULL);
+			sqlite3_exec(db, "CREATE TABLE policies (ip_address TEXT, domain TEXT)", NULL, 0, NULL);
 		}
 	}
 }
 
-static inline bool database_checker(struct rte_mbuf *rx_pkt)
+static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 {
 	if (!db)
 	{
@@ -739,11 +739,51 @@ static inline bool database_checker(struct rte_mbuf *rx_pkt)
 	return count > 0;
 }
 
+static inline bool domain_checker(char domain)
+{
+	if (!db)
+	{
+		// Database is not initialized
+		return false;
+	}
+
+	
+	printf("Domain: %s\n", domain);
+	// Prepare an SQL query to check if the destination IP exists in the database
+	char query[256];
+	snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE domain = '%s'", domain);
+
+	// Execute the SQL query
+	sqlite3_stmt *stmt;
+	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+
+	if (result != SQLITE_OK)
+	{
+		// Handle query preparation error
+		printf("Error preparing SQL query: %s\n", sqlite3_errmsg(db));
+		return false;
+	}
+
+	// Execute the query and check if the domain exists in the database
+	int count = 0;
+	if (sqlite3_step(stmt) == SQLITE_ROW)
+	{
+		count = sqlite3_column_int(stmt, 0);
+	}
+
+	// Finalize the statement
+	sqlite3_finalize(stmt);
+
+
+	return count > 0;
+}
+
 // ======================================================= THE LCORE FUNCTION =======================================================
 static inline void
 lcore_main_process(void)
 {
 	// initialization
+	char extractedName;
 	uint16_t port;
 	init_database();
 	uint64_t timer_tsc = 0;
@@ -776,8 +816,9 @@ lcore_main_process(void)
 		{
 			struct rte_mbuf *rx_pkt = rx_bufs[i];
 			// extractDomainfromHTTP(rx_pkt);
-			// extractDomainfromHTTPS(rx_pkt);
-			if (database_checker(rx_pkt))
+			extractedName = extractDomainfromHTTPS(rx_pkt);
+			// uint64_t start_tsc = rte_rdtsc();
+			if (domain_checker(extractedName))
 			{
 
 				// Create a copy of the received packet
@@ -821,6 +862,9 @@ lcore_main_process(void)
 					port_statistics[1].rstServer++;
 				}
 			}
+			// uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
+            // uint64_t processing_time = end_tsc - start_tsc;
+            // printf("Processing time: %" PRIu64 " cycles\n", processing_time);
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
 		}
 	}
@@ -879,10 +923,9 @@ lcore_stats_process(void)
 					port_statistics[0].dropped = stats_0.imissed;
 
 					// Calculate the throughput
-					end_rx_size_1 = port_statistics[1].rx_size;
-					end_tx_size_0 = port_statistics[0].tx_size;
-					port_statistics[0].throughput = (end_tx_size_0 - start_tx_size_0) / (double)TIMER_PERIOD;
-					port_statistics[1].throughput = (end_rx_size_1 - start_rx_size_1) / (double)TIMER_PERIOD;
+					
+					port_statistics[0].throughput = port_statistics[0].rx_size/TIMER_PERIOD_STATS;
+					port_statistics[1].throughput = port_statistics[1].tx_size/TIMER_PERIOD_STATS;
 
 					// Update the start_tx_size for the next period
 					start_tx_size_0 = end_tx_size_0;
