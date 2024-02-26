@@ -5,8 +5,8 @@
 APP = policyServer
 APP2 = aggregator
 
-# all source are stored in SRCS-y
-SRCS-y := policyServer.c
+# all source are stored in SRCS-pb
+SRCS-pb := policyServer.c
 SRCS-ag := aggregator.c
 
 PKGCONF ?= pkg-config
@@ -16,8 +16,8 @@ ifneq ($(shell $(PKGCONF) --exists libdpdk && echo 0),0)
 $(error "no installation of DPDK found")
 endif
 
-all: shared aggregator stats
-.PHONY: shared static aggregator
+all: shared aggregator stats logs
+.PHONY: shared static aggregator logs
 shared: build/$(APP)-shared
 	ln -sf $(APP)-shared build/$(APP)
 static: build/$(APP)-static
@@ -25,14 +25,16 @@ static: build/$(APP)-static
 aggregator: build/$(APP2)
 stats:
 	@mkdir -p $@
+logs:
+	@mkdir -p $@
 
-# Add SQLite3 flags and DPDK
+PC_FILE := $(shell $(PKGCONF) --path libdpdk 2>/dev/null)
 CFLAGS += -O3 $(shell $(PKGCONF) --cflags libdpdk)
 LDFLAGS_SHARED = $(shell $(PKGCONF) --libs libdpdk)
 LDFLAGS_STATIC = $(shell $(PKGCONF) --static --libs libdpdk)
+LDFLAGS_NETWORK = $(shell echo -lcurl -ljansson)
 LDFLAGS_SHARED += -lsqlite3 # Add SQLite3 linker flag
 LDFLAGS_STATIC += -lsqlite3 # Add SQLite3 linker flag
-LDFLAGS_AGGREGATOR = $(shell $(PKGCONF) -lcurl -ljansson)
 
 ifeq ($(MAKECMDGOALS),static)
 # check for broken pkg-config
@@ -44,14 +46,14 @@ endif
 
 CFLAGS += -DALLOW_EXPERIMENTAL_API
 
-build/$(APP)-shared: $(SRCS-y) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED)
+build/$(APP)-shared: $(SRCS-pb) Makefile $(PC_FILE) | build
+	$(CC) $(CFLAGS) $(SRCS-pb) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED) $(LDFLAGS_NETWORK)
 
-build/$(APP)-static: $(SRCS-y) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SRCS-y) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC)
+build/$(APP)-static: $(SRCS-pb) Makefile $(PC_FILE) | build
+	$(CC) $(CFLAGS) $(SRCS-pb) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC) $(LDFLAGS_NETWORK)
 
 build/$(APP2): build
-	$(CC) $(SRCS-ag) -o $@ -lcurl -ljansson
+	$(CC) $(SRCS-ag) -o $@ $(LDFLAGS_NETWORK)
 
 build:
 	@mkdir -p $@
@@ -59,4 +61,5 @@ build:
 .PHONY: clean
 clean:
 	rm -f build/$(APP) build/$(APP)-static build/$(APP)-shared build/$(APP2)
-	test -d build && rmdir -p build && rm -rf stats || true
+	test -d build && rmdir -p build && rm -rf stats && rm -rf logs || true
+

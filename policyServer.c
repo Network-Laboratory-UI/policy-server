@@ -1,3 +1,4 @@
+// ======================================================= THE LIBRARY =======================================================
 
 // C library
 #include <stdio.h>
@@ -15,7 +16,11 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <time.h>
-#include <rte_cycles.h>
+#include <unistd.h>
+#include <curl/curl.h>
+#include <jansson.h>
+#include <sqlite3.h>
+
 // DPDK library
 #include <rte_eal.h>
 #include <rte_ethdev.h>
@@ -24,17 +29,12 @@
 #include <rte_mbuf.h>
 #include <rte_tcp.h>
 #include <rte_pdump.h>
-#include <stdint.h>
-#include <arpa/inet.h>
-#include <rte_ether.h>
-#include <rte_ip.h>
-#include <sqlite3.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
-#define CACHE_SIZE 1000
-#define RTE_TCP_RST 0x04
 
+
+// ======================================================= THE DEFINE =======================================================
+
+// Define the limit of
 uint32_t MAX_PACKET_LEN;
 uint32_t RX_RING_SIZE;
 uint32_t TX_RING_SIZE;
@@ -42,18 +42,32 @@ uint32_t NUM_MBUFS;
 uint32_t MBUF_CACHE_SIZE;
 uint32_t BURST_SIZE;
 uint32_t MAX_TCP_PAYLOAD_LEN;
+uint32_t PS_ID;
 
+#define CACHE_SIZE 1000
+#define RTE_TCP_RST 0x04
+
+// Define the statistics file name
+// #define STAT_FILE "stats/stats"
+// #define STAT_FILE_EXT ".csv"
 char STAT_FILE[100];
 char STAT_FILE_EXT[100];
+char HOSTNAME[100];
+
 
 static const char *db_path = "/home/ubuntu/policy.db";
 static sqlite3 *db;
 
 // Force quit variable
 static volatile bool force_quit;
+struct IP_Cache
+{
+	char ip[INET_ADDRSTRLEN];
+	bool exists;
+};
+static struct IP_Cache ip_cache[CACHE_SIZE];
 
 // Timer period for statistics
-static uint32_t TIMER_PERIOD;		// in Miliseconds
 static uint32_t TIMER_PERIOD_STATS; // 1 second
 static uint32_t TIMER_PERIOD_SEND;	// 10 minutes
 
@@ -67,25 +81,67 @@ struct port_statistics_data
 	uint64_t tx_size;
 	uint64_t rx_size;
 	uint64_t dropped;
-	uint64_t rstServer;
 	uint64_t rstClient;
-	uint64_t throughput;
+	uint64_t rstServer;
+	long int throughput;
+	uint64_t err_rx;
+	uint64_t err_tx;
+	uint64_t mbuf_err;
 } __rte_cache_aligned;
 struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
-
-struct IP_Cache
-{
-	char ip[INET_ADDRSTRLEN];
-	bool exists;
-};
-static struct IP_Cache ip_cache[CACHE_SIZE];
-
 struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
 
-// ======================================================= THE FUNCTIONS =======================================================
+/*
+* The log message function
+* Log the message to the log file
+* @param filename
+* 	the name of the file
+* @param line
+* 	the line of the file
+* @param format
+* 	the format of the message
+*/
+void logMessage(const char *filename, int line, const char *format, ...)
+{
+	// Open the log file in append mode
+	FILE *file = fopen("logs/log.txt", "a");
+	if (file == NULL)
+	{
+		logMessage(__FILE__, __LINE__, "Error opening file %s\n", filename);
+		return;
+	}
 
-// PORT INITIALIZATION
+	// Get the current time
+	time_t rawtime;
+	struct tm *timeinfo;
+	char timestamp[20];
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+	strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo);
+
+	// Write the timestamp to the file
+	// fprintf(file, "[%s] ", timestamp);
+	fprintf(file, "[%s] [%s:%d] - ", timestamp, filename, line);
+
+	// Write the formatted message to the file
+	va_list args;
+	va_start(args, format);
+	vfprintf(file, format, args);
+	va_end(args);
+
+	// Close the file
+	fclose(file);
+}
+
+/*
+ * The port initialization function
+ * Initialize the port with the given port number and mbuf pool
+ * @param port
+ * 	the port number
+ * @param mbuf_pool
+ * 	pointer to a memory pool of mbufs (memory buffers)
+ */
 static inline int
 port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 {
@@ -110,7 +166,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	retval = rte_eth_dev_info_get(port, &dev_info);
 	if (retval != 0)
 	{
-		printf("Error during getting device (port %u) info: %s\n",
+	 	logMessage(__FILE__, __LINE__, "Error during getting device (port %u) info: %s\n",
 			   port, strerror(-retval));
 		return retval;
 	}
@@ -159,7 +215,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	if (retval != 0)
 		return retval;
 
-	printf("Port %u MAC: %02" PRIx8 " %02" PRIx8 " %02" PRIx8
+	logMessage(__FILE__, __LINE__, "Port %u MAC: %02" PRIx8 " %02" PRIx8 " %02" PRIx8
 		   " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 "\n",
 		   port, RTE_ETHER_ADDR_BYTES(&addr));
 
@@ -170,21 +226,29 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 
 	return 0;
 }
-// END OF PORT INITIALIZATION
 
-// OPEN FILE
+/*
+ * The open file function
+ * Open the file with the given filename
+ * @param filename
+ * 	the name of the file
+ */
 static FILE *open_file(const char *filename)
 {
+	logMessage(__FILE__, __LINE__, "Opening file %s\n", filename);
 	FILE *f = fopen(filename, "a+");
 	if (f == NULL)
 	{
-		printf("Error opening file!\n");
-		exit(1);
+		logMessage(__FILE__, __LINE__, "Error opening file %s\n", filename);
+		rte_exit(EXIT_FAILURE, "Error opening file %s\n", filename);
 	}
 	return f;
 }
 
-// PRINT OUT STATISTICS
+/*
+ * The print statistics function
+ * Print the statistics to the console
+ */
 static void
 print_stats(void)
 {
@@ -194,67 +258,85 @@ print_stats(void)
 	const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
 
 	// Clear screen and move to top left
-	// printf("%s%s", clr, topLeft);
-	// printf("POLICY SERVER\n");
-	// printf("\nRefreshed every %d seconds. "
-	// 	   "Send every %d minutes.\n",
-	// 	   TIMER_PERIOD_STATS, TIMER_PERIOD_SEND);
-	// printf("\nPort statistics ====================================");
+	printf("%s%s", clr, topLeft);
+	printf("POLICY SERVER\n");
+	printf("\nRefreshed every %d seconds. "
+		   "Send every %d minutes.\n",
+		   TIMER_PERIOD_STATS, TIMER_PERIOD_SEND);
+	printf("\nPort statistics ====================================");
 
-	// for (portid = 0; portid < 2; portid++)
-	// {
-	// 	printf("\nStatistics for port %u ------------------------------"
-	// 		   "\nPackets sent count: %18" PRIu64
-	// 		   "\nPackets sent size: %19" PRIu64
-	// 		   "\nPackets received count: %14" PRIu64
-	// 		   "\nPackets received size: %15" PRIu64
-	// 		   "\nPackets dropped: %21" PRIu64
-	// 		   "\nRST to Client:  %22" PRIu64
-	// 		   "\nRST to Server:          %14" PRIu64
-	// 		   "\nThroughput: %26" PRIu64,
-	// 		   portid,
-	// 		   port_statistics[portid].tx_count,
-	// 		   port_statistics[portid].tx_size,
-	// 		   port_statistics[portid].rx_count,
-	// 		   port_statistics[portid].rx_size,
-	// 		   port_statistics[portid].dropped,
-	// 		   port_statistics[portid].rstClient,
-	// 		   port_statistics[portid].rstServer,
-	// 		   port_statistics[portid].throughput);
-	// }
-	// printf("\n=====================================================");
+	for (portid = 0; portid < 2; portid++)
+	{
+		printf("\nStatistics for port %u ------------------------------"
+			   "\nPackets sent count: %18" PRIu64
+			   "\nPackets sent size: %19" PRIu64
+			   "\nPackets received count: %14" PRIu64
+			   "\nPackets received size: %15" PRIu64
+			   "\nPackets dropped: %21" PRIu64
+			   "\nTCP RST to Client: %19" PRIu64
+			   "\nTCP RST to Server: %19" PRIu64
+			   "\nThroughput: %26" PRId64
+			   "\nPacket errors rx: %20" PRIu64
+			   "\nPacket errors tx: %20" PRIu64,
+			   portid,
+			   port_statistics[portid].tx_count,
+			   port_statistics[portid].tx_size,
+			   port_statistics[portid].rx_count,
+			   port_statistics[portid].rx_size,
+			   port_statistics[portid].dropped,
+			   port_statistics[portid].rstClient,
+			   port_statistics[portid].rstServer,
+			   port_statistics[portid].throughput,
+			   port_statistics[portid].err_rx,
+			   port_statistics[portid].err_tx);
+	}
+	printf("\n=====================================================");
 
 	fflush(stdout);
 }
 
-// PRINT STATISTICS HEADER INTO CSV FILE
+/*
+ * The print statistics csv header function
+ * Print the header of the statistics to the csv file
+ * @param f
+ * 	the file pointer
+ */
 static void print_stats_csv_header(FILE *f)
 {
-	fprintf(f, "ps_id,rst_client,rst_server,rx_count,tx_count,rx_size,tx_size,time,throughput\n"); // Header row
+	fprintf(f, "ps_id,rstClient,rstServer,rx_0_count,rx_0_size,tx_1_count,tx_1_size,time,rx_throughput,tx_throughput\n"); // Header row
 }
 
-// PRINT STATISTICS INTO CSV FILE
+/*
+ * The print statistics csv function
+ * Print the statistics to the csv file
+ * @param f
+ * 	the file pointer
+ */
 static void print_stats_csv(FILE *f, char *timestamp)
 {
 	// Write data to the CSV file
-	fprintf(f, "%d,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", 1, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[1].tx_count, port_statistics[0].rx_size, port_statistics[1].tx_size, timestamp, port_statistics[1].throughput);
+	fprintf(f, "%d,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld,%ld\n", 1, port_statistics[0].rstClient, port_statistics[0].rstServer, port_statistics[0].rx_count, port_statistics[0].rx_size, port_statistics[0].tx_count, port_statistics[0].tx_size, timestamp, port_statistics[0].throughput,port_statistics[1].throughput);
 }
 
-// CLEAR THE STATS STRUCT
+/*
+ * The clear statistics function
+ * Clear the statistics
+ */
 static void clear_stats(void)
 {
-	rte_eth_stats_reset(0);
-	rte_eth_stats_reset(1);
 	memset(port_statistics, 0, RTE_MAX_ETHPORTS * sizeof(struct port_statistics_data));
 }
 
-// CONFIG FILE LOADER
+/*
+ * The load configuration file function
+ * Load the configuration file
+ */
 int load_config_file()
 {
-	FILE *configFile = fopen("config/policyServer.cfg", "r");
+	FILE *configFile = fopen("config/config.cfg", "r");
 	if (configFile == NULL)
 	{
-		printf("Error opening configuration file");
+		logMessage(__FILE__, __LINE__, "Cannot open the config file\n");
 		return 1;
 	}
 
@@ -269,62 +351,67 @@ int load_config_file()
 			if (strcmp(key, "MAX_PACKET_LEN") == 0)
 			{
 				MAX_PACKET_LEN = atoi(value);
-				printf("MAX_PACKET_LEN: %d\n", MAX_PACKET_LEN);
+				logMessage(__FILE__, __LINE__, "MAX_PACKET_LEN: %d\n", MAX_PACKET_LEN);
 			}
 			else if (strcmp(key, "RX_RING_SIZE") == 0)
 			{
 				RX_RING_SIZE = atoi(value);
-				printf("RX_RING_SIZE: %d\n", RX_RING_SIZE);
+				logMessage(__FILE__, __LINE__, "RX_RING_SIZE: %d\n", RX_RING_SIZE);
 			}
 			else if (strcmp(key, "TX_RING_SIZE") == 0)
 			{
 				TX_RING_SIZE = atoi(value);
-				printf("TX_RING_SIZE: %d\n", TX_RING_SIZE);
+				logMessage(__FILE__, __LINE__, "TX_RING_SIZE: %d\n", TX_RING_SIZE);
 			}
 			else if (strcmp(key, "NUM_MBUFS") == 0)
 			{
 				NUM_MBUFS = atoi(value);
-				printf("NUM_MBUFS: %d\n", NUM_MBUFS);
+				logMessage(__FILE__, __LINE__, "NUM_MBUFS: %d\n", NUM_MBUFS);
 			}
 			else if (strcmp(key, "MBUF_CACHE_SIZE") == 0)
 			{
 				MBUF_CACHE_SIZE = atoi(value);
-				printf("MBUF_CACHE_SIZE: %d\n", MBUF_CACHE_SIZE);
+				logMessage(__FILE__, __LINE__, "MBUF_CACHE_SIZE: %d\n", MBUF_CACHE_SIZE);
 			}
 			else if (strcmp(key, "BURST_SIZE") == 0)
 			{
 				BURST_SIZE = atoi(value);
-				printf("BURST_SIZE: %d\n", BURST_SIZE);
+				logMessage(__FILE__, __LINE__, "BURST_SIZE: %d\n", BURST_SIZE);
 			}
 			else if (strcmp(key, "MAX_TCP_PAYLOAD_LEN") == 0)
 			{
 				MAX_TCP_PAYLOAD_LEN = atoi(value);
-				printf("MAX_TCP_PAYLOAD_LEN: %d\n", MAX_TCP_PAYLOAD_LEN);
+				logMessage(__FILE__, __LINE__, "MAX_TCP_PAYLOAD_LEN: %d\n", MAX_TCP_PAYLOAD_LEN);
 			}
 			else if (strcmp(key, "STAT_FILE") == 0)
 			{
 				strcpy(STAT_FILE, value);
-				printf("STAT_FILE: %s\n", STAT_FILE);
+		 		logMessage(__FILE__, __LINE__, "STAT_FILE: %s\n", STAT_FILE);
 			}
 			else if (strcmp(key, "STAT_FILE_EXT") == 0)
 			{
 				strcpy(STAT_FILE_EXT, value);
-				printf("STAT_FILE_EXT: %s\n", STAT_FILE_EXT);
-			}
-			else if (strcmp(key, "TIMER_PERIOD") == 0)
-			{
-				TIMER_PERIOD = atoi(value);
-				printf("TIMER_PERIOD: %d\n", TIMER_PERIOD);
+				logMessage(__FILE__, __LINE__, "STAT_FILE_EXT: %s\n", STAT_FILE_EXT);
 			}
 			else if (strcmp(key, "TIMER_PERIOD_STATS") == 0)
 			{
 				TIMER_PERIOD_STATS = atoi(value);
-				printf("TIMER_PERIOD_STATS: %d\n", TIMER_PERIOD_STATS);
+				logMessage(__FILE__, __LINE__, "TIMER_PERIOD_STATS: %d\n", TIMER_PERIOD_STATS);
 			}
 			else if (strcmp(key, "TIMER_PERIOD_SEND") == 0)
 			{
 				TIMER_PERIOD_SEND = atoi(value);
-				printf("TIMER_PERIOD_SEND: %d\n", TIMER_PERIOD_SEND);
+				logMessage(__FILE__, __LINE__, "TIMER_PERIOD_SEND: %d\n", TIMER_PERIOD_SEND);
+			}
+			else if (strcmp(key, "ID") == 0)
+			{
+				PS_ID = atoi(value);
+				logMessage(__FILE__, __LINE__, "PS ID: %d\n", PS_ID);
+			}
+			else if (strcmp(key, "HOSTNAME") == 0)
+			{
+				strcpy(HOSTNAME, value);
+				logMessage(__FILE__, __LINE__, "HOSTNAME: %s\n", HOSTNAME);
 			}
 		}
 	}
@@ -333,21 +420,67 @@ int load_config_file()
 	return 0;
 }
 
-// TERMINATION SIGNAL HANDLER
+
+
+/*
+* The termination signal handler
+* Handle the termination signal
+* @param signum
+* 	the signal number
+*/
 static void
 signal_handler(int signum)
 {
 	if (signum == SIGINT || signum == SIGTERM)
 	{
-		printf("\n\nSignal %d received, preparing to exit...\n",
-			   signum);
+		logMessage(__FILE__, __LINE__, "Signal %d received, preparing to exit...\n", signum);
 		force_quit = true;
 	}
 }
-// END OF TERMINATION SIGNAL HANDLER
 
-// PRINT STATISTICS PROCESS
-static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_stat)
+static void
+populate_json_array(json_t *jsonArray, char *timestamp){
+	// Create object for the statistics
+	json_t *jsonObject = json_object();
+
+	// Populate the JSON object
+	json_object_set(jsonObject, "ps_id", json_integer(PS_ID));
+	json_object_set(jsonObject, "rx_0_count", json_integer(port_statistics[0].rx_count));
+	json_object_set(jsonObject, "tx_0_count", json_integer(port_statistics[0].tx_count));
+	json_object_set(jsonObject, "rx_0_size", json_integer(port_statistics[0].rx_size));
+	json_object_set(jsonObject, "tx_0_size", json_integer(port_statistics[0].tx_size));
+	json_object_set(jsonObject, "rx_0_drop", json_integer(port_statistics[0].dropped));
+	json_object_set(jsonObject, "rx_0_error", json_integer(port_statistics[0].err_rx));
+	json_object_set(jsonObject, "tx_0_error", json_integer(port_statistics[0].err_tx));
+	json_object_set(jsonObject, "rx_0_mbuf", json_integer(port_statistics[0].mbuf_err));
+	json_object_set(jsonObject, "rstClient", json_integer(port_statistics[1].rstClient));
+	json_object_set(jsonObject, "rstServer", json_integer(port_statistics[1].rstServer));
+	json_object_set(jsonObject, "rx_1_count", json_integer(port_statistics[1].rx_count));
+	json_object_set(jsonObject, "tx_1_count", json_integer(port_statistics[1].tx_count));
+	json_object_set(jsonObject, "rx_1_size", json_integer(port_statistics[1].rx_size));
+	json_object_set(jsonObject, "tx_1_size", json_integer(port_statistics[1].tx_size));
+	json_object_set(jsonObject, "rx_1_drop", json_integer(port_statistics[1].dropped));
+	json_object_set(jsonObject, "rx_1_error", json_integer(port_statistics[1].err_rx));
+	json_object_set(jsonObject, "tx_1_error", json_integer(port_statistics[1].err_tx));
+	json_object_set(jsonObject, "rx_1_mbuf", json_integer(port_statistics[1].mbuf_err));
+	json_object_set(jsonObject, "time", json_string(timestamp));
+	json_object_set(jsonObject, "throughput", json_integer(port_statistics[0].throughput));
+
+	// Append the JSON object to the JSON array
+	json_array_append(jsonArray, jsonObject);
+}
+
+/*
+ * The print statistics file function
+ * Print the statistics to the file
+ * @param last_run_stat
+ * 	the last run statistics
+ * @param last_run_file
+ * 	the last run file
+ * @param f_stat
+ * 	the file pointer
+ */
+static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_stat, json_t *jsonArray)
 {
 	int current_sec;
 	char time_str[80];
@@ -381,7 +514,6 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 			strcat(filename, STAT_FILE);
 			strcat(filename, time_str_file);
 			strcat(filename, STAT_FILE_EXT);
-			printf("first open file");
 			*f_stat = open_file(filename);
 
 			// print the header of the statistics file
@@ -400,6 +532,7 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 
 		// print out the stats to csv
 		print_stats_csv(*f_stat, time_str);
+		populate_json_array(jsonArray,time_str);
 		fflush(*f_stat);
 
 		// clear the stats
@@ -411,7 +544,6 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 			strcat(filename, STAT_FILE);
 			strcat(filename, time_str);
 			strcat(filename, STAT_FILE_EXT);
-			printf("open file");
 			*f_stat = open_file(filename);
 
 			// print the header of the statistics file
@@ -428,6 +560,99 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 		*last_run_stat = current_sec;
 	}
 }
+
+static void
+send_stats_to_server(json_t *jsonArray)
+{
+	CURL *curl;
+	CURLcode res;
+	struct curl_slist *headers = curl_slist_append(headers, "Content-Type: application/json");;
+	char *jsonString = json_dumps(jsonArray, 0);
+	char url[256];
+
+	sprintf(url, "%s/ps/ps-packet", HOSTNAME);
+
+	curl_global_init(CURL_GLOBAL_DEFAULT);
+	curl = curl_easy_init();
+
+	if (curl)
+	{
+		headers = curl_slist_append(headers, "Content-Type: application/json");
+
+		curl_easy_setopt(curl, CURLOPT_URL, url);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString);
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+		res = curl_easy_perform(curl);
+
+		if (res != CURLE_OK)
+		{
+			fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+			logMessage(__FILE__, __LINE__, "Send Stats failed: %s\n", curl_easy_strerror(res));
+		}
+
+		curl_slist_free_all(headers);
+		curl_easy_cleanup(curl);
+		free(jsonString);
+		json_array_clear(jsonArray);
+	}
+
+	curl_global_cleanup();
+}
+
+static void
+send_stats(json_t *jsonArray, int *last_run_send){
+
+	// Get the current time
+	time_t rawtime;
+	struct tm *timeinfo;
+	char timestamp[20];
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+
+	int current_min = timeinfo->tm_min;
+	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_send){
+		// send the statistics to the server
+		logMessage(__FILE__, __LINE__, "Sending statistics to server\n");
+		send_stats_to_server(jsonArray);
+		*last_run_send = current_min;
+	}
+}
+
+static void
+collect_stats(){
+	// Get the statistics
+	rte_eth_stats_get(1, &stats_1);
+	rte_eth_stats_get(0, &stats_0);
+
+	// Update the statistics
+	port_statistics[1].rx_count = stats_1.ipackets;
+	port_statistics[1].tx_count = stats_1.opackets;
+	port_statistics[1].rx_size = stats_1.ibytes;
+	port_statistics[1].tx_size = stats_1.obytes;
+	port_statistics[1].dropped = stats_1.imissed;
+	port_statistics[1].err_rx = stats_1.ierrors;
+	port_statistics[1].err_tx = stats_1.oerrors;
+	port_statistics[1].mbuf_err = stats_1.rx_nombuf;
+	port_statistics[0].rx_count = stats_0.ipackets;
+	port_statistics[0].tx_count = stats_0.opackets;
+	port_statistics[0].rx_size = stats_0.ibytes;
+	port_statistics[0].tx_size = stats_0.obytes;
+	port_statistics[0].dropped = stats_0.imissed;
+	port_statistics[0].err_rx = stats_0.ierrors;
+	port_statistics[0].err_tx = stats_0.oerrors;
+	port_statistics[0].mbuf_err = stats_0.rx_nombuf;
+
+	// Clear the statistics
+	rte_eth_stats_reset(0);
+	rte_eth_stats_reset(1);
+
+	// Calculate the throughput
+	port_statistics[1].throughput = port_statistics[1].rx_size / TIMER_PERIOD_STATS;
+	port_statistics[0].throughput = port_statistics[0].tx_size / TIMER_PERIOD_STATS;
+
+}
+
 static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 {
 	// Extract Ethernet header
@@ -519,12 +744,11 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 {
-	printf("From HTTP Extract");
+	
 	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
 
 	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
 	{
-		printf("Not an IPv4 Packet\n");
 		return NULL;
 	}
 
@@ -532,7 +756,6 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 
 	if (ipv4_hdr->next_proto_id != IPPROTO_TCP)
 	{
-		printf("Not a TCP Packet\n");
 		return NULL;
 	}
 
@@ -560,7 +783,6 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 			char *host = (char *)malloc(256 * sizeof(char)); // Assuming a reasonable max size for the host.
 			if (host == NULL)
 			{
-				printf("Memory allocation failed\n");
 				return NULL;
 			}
 			int host_length = host_end - host_start - 6; // Subtract "Host: "
@@ -568,7 +790,7 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 			{
 				strncpy(host, host_start + 6, host_length);
 				host[host_length] = '\0'; // Null-terminate the string
-				printf("HTTP Host: %s\n", host);
+				// printf("HTTP Host: %s\n", host);
 				return host;
 			}
 			free(host); // Free allocated memory in case of errors
@@ -768,8 +990,6 @@ static inline bool domain_checker(char *domain)
 
 	if (result != SQLITE_OK)
 	{
-		// Handle query preparation error
-		printf("Error preparing SQL query: %s\n", sqlite3_errmsg(db));
 		return false;
 	}
 
@@ -782,11 +1002,62 @@ static inline bool domain_checker(char *domain)
 
 	// Finalize the statement
 	sqlite3_finalize(stmt);
-	printf("Count: %d\n", count);
+	// printf("Count: %d\n", count);
 	return count > 0;
 }
 
-// ======================================================= THE LCORE FUNCTION =======================================================
+/*
+ * The lcore stast process
+ * Running all the stats process including
+ * - Get the statistics
+ * - Update the statistics
+ * - Calculate the throughput
+ * - Print the statistics
+ * - Print the statistics to file
+ * - Reset the timer
+ */
+static inline void
+lcore_stats_process(void)
+{
+	// Variable declaration
+	int last_run_stat = 0;							 // lastime statistics printed
+	int last_run_file = 0;							 // lastime statistics printed to file
+	int last_run_send = 0;							 // lastime statistics sent to server
+	uint64_t start_tx_size_0 = 0, end_tx_size_0 = 0; // For throughput calculation
+	uint64_t start_rx_size_1 = 0, end_rx_size_1 = 0; // For throughput calculation
+	double throughput_0 = 0.0, throughput_1 = 0.0;	 // For throughput calculation
+	FILE *f_stat = NULL;							 // File pointer for statistics
+	json_t *jsonArray = json_array();				 // JSON array for statistics
+
+	logMessage(__FILE__, __LINE__, "Starting stats process in %d\n", rte_lcore_id());
+
+	while (!force_quit)
+	{
+		// Get the statistics
+		collect_stats();
+
+		// Print the statistics
+		print_stats();
+
+		// Print Statistcs to file
+		print_stats_file(&last_run_stat, &last_run_file, &f_stat, jsonArray);
+
+        // Send stats
+		send_stats(jsonArray, &last_run_send);
+
+		usleep(1000000 * TIMER_PERIOD_STATS);
+	}
+}
+
+/*
+ * The lcore main process
+ * Running all the forwarding process including
+ * - Get the burst of RX packets
+ * - Check the packet type (HTTP or HTTPS)
+ * - Send the packet to the right port
+ * - Update the statistics
+ * - Free up the buffer
+ */
 static inline void
 lcore_main_process(void)
 {
@@ -819,7 +1090,7 @@ lcore_main_process(void)
 		/* Get a burst of RX packets from the first port of the pair. */
 		struct rte_mbuf *rx_bufs[BURST_SIZE];
 		const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
-		uint64_t start_tsc = rte_rdtsc();
+		// uint64_t start_tsc = rte_rdtsc();
 		for (uint16_t i = 0; i < rx_count; i++)
 		{
 			struct rte_mbuf *rx_pkt = rx_bufs[i];
@@ -827,7 +1098,7 @@ lcore_main_process(void)
 			// extractedName = extractDomainfromHTTPS(rx_pkt);
 			// printf("Extracted Name333333: %s\n", extractedName);
 
-			if (domain_checker(extractDomainfromHTTP(rx_pkt)))
+			if (ip_checker(rx_pkt))
 			{
 
 				// Create a copy of the received packet
@@ -871,92 +1142,91 @@ lcore_main_process(void)
 					port_statistics[1].rstServer++;
 				}
 			}
-			uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
-			uint64_t processing_time = end_tsc - start_tsc;
-			printf("Processing time: %" PRIu64 " cycles\n", processing_time);
+			// uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
+			// uint64_t processing_time = end_tsc - start_tsc;
+			// printf("Processing time: %" PRIu64 " cycles\n", processing_time);
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
 		}
 	}
 }
 
-static inline void
-lcore_stats_process(void)
+/*
+ * The write callback function
+ * Write the callback function for the heartbeat
+ * @param contents
+ * 	the contents
+ * @param size
+ * 	the size
+ * @param nmemb
+ * 	the nmemb
+ * @param userp
+ * 	the userp
+ */
+size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
-	// Variable declaration
-	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc; // for timestamp
-	const uint64_t drain_tsc = rte_get_tsc_hz() / 1000;
-	int last_run_stat = 0;
-	int last_run_file = 0;
-	uint64_t start_tx_size_0 = 0, end_tx_size_0 = 0;
-	uint64_t start_rx_size_1 = 0, end_rx_size_1 = 0;
-	double throughput_0 = 0.0, throughput_1 = 0.0;
-	FILE *f_stat = NULL;
-
-	timer_tsc = 0;
-	prev_tsc = 0;
-
-	while (!force_quit)
-	{
-		// Get the current timestamp
-		cur_tsc = rte_rdtsc();
-
-		// Get the difference between the current timestamp and the previous timestamp
-		diff_tsc = cur_tsc - prev_tsc;
-
-		if (unlikely(diff_tsc > drain_tsc))
-		{
-			if (TIMER_PERIOD > 0)
-			{
-
-				timer_tsc += 1;
-
-				// Check if the difference is greater than the timer period
-				if (unlikely(timer_tsc >= TIMER_PERIOD))
-				{
-					printf("timer_tsc: %ld\n", timer_tsc);
-
-					// Get the statistics
-					rte_eth_stats_get(1, &stats_1);
-					rte_eth_stats_get(0, &stats_0);
-
-					// Update the statistics
-					port_statistics[1].rx_count = stats_1.ipackets;
-					port_statistics[1].tx_count = stats_1.opackets;
-					port_statistics[1].rx_size = stats_1.ibytes;
-					port_statistics[1].tx_size = stats_1.obytes;
-					port_statistics[1].dropped = stats_1.imissed;
-					port_statistics[0].rx_count = stats_0.ipackets;
-					port_statistics[0].tx_count = stats_0.opackets;
-					port_statistics[0].rx_size = stats_0.ibytes;
-					port_statistics[0].tx_size = stats_0.obytes;
-					port_statistics[0].dropped = stats_0.imissed;
-
-					// Calculate the throughput
-
-					port_statistics[0].throughput = port_statistics[0].rx_size / TIMER_PERIOD_STATS;
-					port_statistics[1].throughput = port_statistics[1].tx_size / TIMER_PERIOD_STATS;
-
-					// Update the start_tx_size for the next period
-					start_tx_size_0 = end_tx_size_0;
-					start_rx_size_1 = end_rx_size_1;
-
-					// Print the statistics
-					print_stats();
-
-					// Print Statistcs to file
-					print_stats_file(&last_run_stat, &last_run_file, &f_stat);
-
-					// Reset the timer
-					timer_tsc = 0;
-				}
-			}
-			// Reset the previous timestamp
-			prev_tsc = cur_tsc;
-		}
-	}
+	size_t real_size = size * nmemb;
+	logMessage(__FILE__, __LINE__, "Heartbeat Response: %.*s \n", (int)real_size, (char *)contents);
+	return real_size;
 }
 
-// ======================================================= THE MAIN FUNCTION =======================================================
+/*
+ * The lcore heartbeat process
+ * Running the heartbeat process
+ * - Send the heartbeat to the server
+ * - Sleep for 5 seconds
+ */
+static inline void
+lcore_heartbeat_process()
+{
+    CURL *curl;
+    CURLcode res;
+    char post_fields[256];
+	char url[256];
+    char timestamp_str[25];
+    time_t timestamp;
+    struct tm *tm_info;
+    struct curl_slist *headers = NULL;
+
+	sprintf(url, "%s/ps/heartbeat", HOSTNAME);
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    if (curl)
+    {
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+
+        while (!force_quit)
+        {
+            timestamp = time(NULL);
+            tm_info = gmtime(&timestamp);
+            strftime(timestamp_str, 25, "%Y-%m-%dT%H:%M:%S.000Z", tm_info);
+
+            sprintf(post_fields, "[{\"ps_id\": %d, \"time\": \"%s\"}]", PS_ID, timestamp_str);
+
+            curl_easy_setopt(curl, CURLOPT_URL, url);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_fields);
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+
+            res = curl_easy_perform(curl);
+
+            if (res != CURLE_OK)
+            {
+                logMessage(__FILE__, __LINE__, "Heartbeat failed: %s\n", curl_easy_strerror(res));
+            }
+            sleep(5);
+        }
+
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+    }	
+
+    curl_global_cleanup();
+}
+
+
 int main(int argc, char *argv[])
 {
 	struct rte_mempool *mbuf_pool;
@@ -964,16 +1234,24 @@ int main(int argc, char *argv[])
 	uint16_t portid;
 	unsigned lcore_id, lcore_main = 0, lcore_stats = 0;
 
+	// log the starting of the application
+	logMessage(__FILE__, __LINE__, "Starting the application\n");
+
 	// load the config file
 	if (load_config_file())
 	{
+		logMessage(__FILE__, __LINE__, "Cannot load the config file\n");
 		rte_exit(EXIT_FAILURE, "Cannot load the config file\n");
 	}
+	logMessage(__FILE__, __LINE__, "Load config done\n");
 
 	// Initializion the Environment Abstraction Layer (EAL)
 	int ret = rte_eal_init(argc, argv);
 	if (ret < 0)
+	{
+		logMessage(__FILE__, __LINE__, "Error with EAL initialization\n");
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
+	}
 
 	argc -= ret;
 	argv += ret;
@@ -985,11 +1263,15 @@ int main(int argc, char *argv[])
 
 	// clean the data
 	memset(port_statistics, 0, 32 * sizeof(struct port_statistics_data));
+	logMessage(__FILE__, __LINE__, "Clean the statistics data\n");
 
 	// count the number of ports to send and receive
 	nb_ports = rte_eth_dev_count_avail();
 	if (nb_ports < 2 || (nb_ports & 1))
+	{
+		logMessage(__FILE__, __LINE__, "Error: number of ports must be even\n");
 		rte_exit(EXIT_FAILURE, "Error: number of ports must be even\n");
+	}
 
 	// allocates the mempool to hold the mbufs
 	mbuf_pool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports,
@@ -997,52 +1279,61 @@ int main(int argc, char *argv[])
 
 	// check the mempool allocation
 	if (mbuf_pool == NULL)
+	{
+		logMessage(__FILE__, __LINE__, "Cannot create mbuf pool\n");
 		rte_exit(EXIT_FAILURE, "Cannot create mbuf pool\n");
+	}
+	logMessage(__FILE__, __LINE__, "Create mbuf pool done\n");
 
 	// initializing ports
 	RTE_ETH_FOREACH_DEV(portid)
 	if (port_init(portid, mbuf_pool) != 0)
-		rte_exit(EXIT_FAILURE, "Cannot init port %" PRIu16 "\n",
-				 portid);
+	{
+		logMessage(__FILE__, __LINE__, "Cannot init port %" PRIu16 "\n", portid);
+		rte_exit(EXIT_FAILURE, "Cannot init port %" PRIu16 "\n", portid);
+	}
 
 	// count the number of lcore
-	if (rte_lcore_count() < 2)
-		rte_exit(EXIT_FAILURE, "lcore must be more than equal 2\n");
-
-	printf("assign lcore \n");
+	if (rte_lcore_count() < 3)
+	{
+		logMessage(__FILE__, __LINE__, "lcore must be more than equal 3\n");
+		rte_exit(EXIT_FAILURE, "lcore must be more than equal 3\n");
+	}
 
 	RTE_LCORE_FOREACH_WORKER(lcore_id)
 	{
-		printf("lcore id : %u\n", lcore_id);
-		printf("lcore main : %u\n", lcore_main == 0);
-		printf("lcore stats : %u\n", lcore_stats);
 		if (lcore_id == (unsigned int)lcore_main ||
 			lcore_id == (unsigned int)lcore_stats)
 		{
-			printf("continue \n");
 			continue;
 		}
 		if (lcore_main == 0)
 		{
 			lcore_main = lcore_id;
-			printf("main on core %u\n", lcore_id);
+			logMessage(__FILE__, __LINE__, "Main on core %u\n", lcore_id);
 			continue;
 		}
 		if (lcore_stats == 0)
 		{
 			lcore_stats = lcore_id;
-			printf("Stats on core %u\n", lcore_id);
+			logMessage(__FILE__, __LINE__, "Stats on core %u\n", lcore_id);
 			continue;
 		}
 	}
 
 	// run the lcore main function
+	logMessage(__FILE__, __LINE__, "Run the lcore main function\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_main_process,
 						  NULL, lcore_main);
 
 	// run the stats
+	logMessage(__FILE__, __LINE__, "Run the stats\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_stats_process,
 						  NULL, lcore_stats);
+
+	// run the heartbeat
+	logMessage(__FILE__, __LINE__, "Run the heartbeat\n");
+	lcore_heartbeat_process();
 
 	// wait all lcore stopped
 	RTE_LCORE_FOREACH_WORKER(lcore_id)
