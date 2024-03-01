@@ -22,7 +22,6 @@
 #include <sqlite3.h>
 #include <librdkafka/rdkafka.h>
 
-
 // DPDK library
 #include <rte_eal.h>
 #include <rte_ethdev.h>
@@ -47,7 +46,6 @@ uint32_t PS_ID;
 #define CACHE_SIZE 1000
 #define RTE_TCP_RST 0x04
 
-
 #define KAFKA_TOPIC "dpdk-blocked-list"
 #define KAFKA_BROKER "192.168.0.90:9092"
 // Define the statistics file name
@@ -69,12 +67,11 @@ struct IP_Cache
 };
 static struct IP_Cache ip_cache[CACHE_SIZE];
 
-
-
 // Structure to hold domain cache entries
-struct DomainCacheEntry {
-    char domain[256];
-    bool exists;
+struct DomainCacheEntry
+{
+	char domain[256];
+	bool exists;
 };
 
 // Cache for domain results
@@ -180,54 +177,72 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 		return;
 	}
 
-	 json_t *ip_add = json_object_get(createdBlockedList, "ip_add");
-    if (!ip_add || !json_is_string(ip_add)) {
-       logMessage(__FILE__, __LINE__, "Key 'ip_add' not found or not a string\n");
-        json_decref(root);
-        return;
-    }
-    const char *ip_str = json_string_value(ip_add);
-    if (!ip_str) {
-        logMessage(__FILE__, __LINE__, "Failed to get 'ip_add' value as string\n");
-        json_decref(root);
-        return;
-    }
+	json_t *ip_add = json_object_get(createdBlockedList, "ip_add");
+	if (!ip_add || !json_is_string(ip_add))
+	{
+		logMessage(__FILE__, __LINE__, "Key 'ip_add' not found or not a string\n");
+		json_decref(root);
+		return;
+	}
+	const char *ip_str = json_string_value(ip_add);
+	if (!ip_str)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to get 'ip_add' value as string\n");
+		json_decref(root);
+		return;
+	}
 
-	 json_t *type = json_object_get(root, "type");
-    if (!type || !json_is_string(type)) {
-        logMessage(__FILE__, __LINE__, "Key 'type' not found or not a string\n");
-        json_decref(root);
-        return;
-    }
-    const char *type_str = json_string_value(type);
-    if (!type_str) {
-         logMessage(__FILE__, __LINE__,"Failed to get 'type' value as string\n");
-        json_decref(root);
-        return;
-    }
+	json_t *type = json_object_get(root, "type");
+	if (!type || !json_is_string(type))
+	{
+		logMessage(__FILE__, __LINE__, "Key 'type' not found or not a string\n");
+		json_decref(root);
+		return;
+	}
+	const char *type_str = json_string_value(type);
+	if (!type_str)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to get 'type' value as string\n");
+		json_decref(root);
+		return;
+	}
 
 	json_t *id = json_object_get(createdBlockedList, "id");
-    if (!id || !json_is_integer(id)) {
-        logMessage(__FILE__, __LINE__, "Key 'id' not found or not an integer\n");
-        json_decref(root);
-        return;
-    }
-    int id_value = json_integer_value(id);
+	if (!id || !json_is_string(id))
+	{
+		logMessage(__FILE__, __LINE__, "Key 'id' not found or not a string\n");
+		json_decref(root);
+		return;
+	}
+	const char *id_str = json_string_value(id);
+	if (!id_str)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to get 'id' value as string\n");
+		json_decref(root);
+		return;
+	}
 
 	// Update SQLite database
 	char sql_query[256];
 
-	 if (strcmp(type_str, "create") == 0) {
-       snprintf(sql_query, sizeof(sql_query), "INSERT INTO policies (id, domain, ip_address) VALUES (%d, '%s', '%s');", id_value, domain_str, ip_str);
-    } else if (strcmp(type_str, "update") == 0) {
-        snprintf(sql_query, sizeof(sql_query), "UPDATE your_table SET domain='%s', ip='%s' WHERE id=%d;", domain_str, ip_str, id_value);
-    } else if (strcmp(type_str, "delete") == 0) {
-        snprintf(sql_query, sizeof(sql_query), "DELETE FROM your_table WHERE id=%d;", id_value);
-    } else {
-        logMessage(__FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
-        json_decref(root);
-        return;
-    }
+	if (strcmp(type_str, "create") == 0)
+	{
+		snprintf(sql_query, sizeof(sql_query), "INSERT INTO policies (id, domain, ip_address) VALUES ('%s', '%s', '%s');", id_str, domain_str, ip_str);
+	}
+	else if (strcmp(type_str, "update") == 0)
+	{
+		snprintf(sql_query, sizeof(sql_query), "UPDATE your_table SET domain='%s', ip='%s' WHERE id='%s';", domain_str, ip_str, id_str);
+	}
+	else if (strcmp(type_str, "delete") == 0)
+	{
+		snprintf(sql_query, sizeof(sql_query), "DELETE FROM your_table WHERE id='%s';", id_str);
+	}
+	else
+	{
+		logMessage(__FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
+		json_decref(root);
+		return;
+	}
 
 	// Execute SQL query
 	char *errmsg;
@@ -245,69 +260,75 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 }
 
 // Function to set up Kafka consumer
-void run_kafka_consumer() {
-    rd_kafka_t *rk;           // Kafka handle
-    rd_kafka_conf_t *conf;    // Kafka configuration
-    rd_kafka_resp_err_t err;  // Kafka error handler
-    rd_kafka_topic_t *topic;  // Kafka topic
+void run_kafka_consumer()
+{
+	rd_kafka_t *rk;			 // Kafka handle
+	rd_kafka_conf_t *conf;	 // Kafka configuration
+	rd_kafka_resp_err_t err; // Kafka error handler
+	rd_kafka_topic_t *topic; // Kafka topic
 
-    // Kafka configuration
-    conf = rd_kafka_conf_new();
-    if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER, NULL, 0) != RD_KAFKA_CONF_OK) {
-        logMessage(__FILE__, __LINE__, "Failed to set Kafka broker configuration\n");
-        return;
-    }
+	// Kafka configuration
+	conf = rd_kafka_conf_new();
+	if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER, NULL, 0) != RD_KAFKA_CONF_OK)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to set Kafka broker configuration\n");
+		return;
+	}
 
-    // Create Kafka consumer
-    rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, NULL, 0);
-    if (!rk) {
-        logMessage(__FILE__, __LINE__, "Failed to create Kafka consumer\n");
-        return;
-    }
+	// Create Kafka consumer
+	rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, NULL, 0);
+	if (!rk)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to create Kafka consumer\n");
+		return;
+	}
 
-    // Subscribe to Kafka topic
-    topic = rd_kafka_topic_new(rk, KAFKA_TOPIC, NULL);
-    if (!topic) {
-        logMessage(__FILE__, __LINE__,"Failed to create Kafka topic object\n");
-        rd_kafka_destroy(rk);
-        return;
-    }
+	// Subscribe to Kafka topic
+	topic = rd_kafka_topic_new(rk, KAFKA_TOPIC, NULL);
+	if (!topic)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to create Kafka topic object\n");
+		rd_kafka_destroy(rk);
+		return;
+	}
 
-    // Open SQLite database
-    if (sqlite3_open(db_path, &db) != SQLITE_OK) {
-        logMessage(__FILE__, __LINE__, "Can't open database: %s\n", sqlite3_errmsg(db));
-        rd_kafka_topic_destroy(topic);
-        rd_kafka_destroy(rk);
-        return;
-    }
+	// Open SQLite database
+	if (sqlite3_open(db_path, &db) != SQLITE_OK)
+	{
+		logMessage(__FILE__, __LINE__, "Can't open database: %s\n", sqlite3_errmsg(db));
+		rd_kafka_topic_destroy(topic);
+		rd_kafka_destroy(rk);
+		return;
+	}
 
-    // Start consuming messages
-    if (rd_kafka_consume_start(topic, 0, RD_KAFKA_OFFSET_BEGINNING) == -1) {
-        logMessage(__FILE__, __LINE__, "Failed to start consuming messages\n");
-        rd_kafka_topic_destroy(topic);
-        rd_kafka_destroy(rk);
-        sqlite3_close(db);
-        return;
-    }
+	// Start consuming messages
+	if (rd_kafka_consume_start(topic, 0, RD_KAFKA_OFFSET_BEGINNING) == -1)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to start consuming messages\n");
+		rd_kafka_topic_destroy(topic);
+		rd_kafka_destroy(rk);
+		sqlite3_close(db);
+		return;
+	}
 
-    // Loop to consume messages
-    while (!force_quit) {
-        rd_kafka_message_t *rkmessage;
-        rkmessage = rd_kafka_consume(topic, 0, 1000); // 1 second timeout
-        if (rkmessage) {
-            msg_consume(rkmessage, db);
-            rd_kafka_message_destroy(rkmessage);
-        }
-    }
+	// Loop to consume messages
+	while (!force_quit)
+	{
+		rd_kafka_message_t *rkmessage;
+		rkmessage = rd_kafka_consume(topic, 0, 1000); // 1 second timeout
+		if (rkmessage)
+		{
+			msg_consume(rkmessage, db);
+			rd_kafka_message_destroy(rkmessage);
+		}
+	}
 
-    // Cleanup
-    rd_kafka_consume_stop(topic, 0);
-    rd_kafka_topic_destroy(topic);
-    rd_kafka_destroy(rk);
-    sqlite3_close(db);
+	// Cleanup
+	rd_kafka_consume_stop(topic, 0);
+	rd_kafka_topic_destroy(topic);
+	rd_kafka_destroy(rk);
+	sqlite3_close(db);
 }
-
-
 
 static inline int
 port_init(uint16_t port, struct rte_mempool *mbuf_pool)
@@ -393,7 +414,6 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	return 0;
 }
 
-
 static FILE *open_file(const char *filename)
 {
 	logMessage(__FILE__, __LINE__, "Opening file %s\n", filename);
@@ -456,12 +476,10 @@ print_stats(void)
 	fflush(stdout);
 }
 
-
 static void print_stats_csv_header(FILE *f)
 {
 	fprintf(f, "ps_id,rstClient,rstServer,rx_0_count,tx_0_count,rx_0_size,tx_0_size,rx_0_drop,rx_0_error,tx_0_error,rx_0_mbuf,rx_1_count,tx_1_count,rx_1_size,tx_1_size,rx_1_drop,rx_1_error,tx_1_error,rx_1_mbuf,time,throughput\n"); // Header row
 }
-
 
 static void print_stats_csv(FILE *f, char *timestamp)
 {
@@ -809,7 +827,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
 	{
-		logMessage(__FILE__, __LINE__,"Packet is not an IPv4 packet\n");
+		logMessage(__FILE__, __LINE__, "Packet is not an IPv4 packet\n");
 		return NULL;
 	}
 
@@ -818,7 +836,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (ip_hdr->next_proto_id != IPPROTO_TCP)
 	{
-		logMessage(__FILE__, __LINE__,"Packet is not a TCP packet\n");
+		logMessage(__FILE__, __LINE__, "Packet is not a TCP packet\n");
 		return NULL;
 	}
 
@@ -830,7 +848,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (tls_offset <= 0)
 	{
-		logMessage(__FILE__, __LINE__,"No TLS header found in the packet\n");
+		logMessage(__FILE__, __LINE__, "No TLS header found in the packet\n");
 		return NULL;
 	}
 
@@ -839,7 +857,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (tls_payload_length <= 0)
 	{
-		logMessage(__FILE__, __LINE__,"No TLS payload found in the packet\n");
+		logMessage(__FILE__, __LINE__, "No TLS payload found in the packet\n");
 		return NULL;
 	}
 
@@ -848,7 +866,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (start_offset < 0 || end_offset >= tls_payload_length)
 	{
-		logMessage(__FILE__, __LINE__,"Invalid byte range specified for the TLS payload\n");
+		logMessage(__FILE__, __LINE__, "Invalid byte range specified for the TLS payload\n");
 		return NULL;
 	}
 
@@ -877,7 +895,6 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 			extractedName[nameIndex] = '\0'; // Null-terminate the string
 			// printf("Name Length: %d\n", namelength);
 			// printf("Extracted Name: %s\n", extractedName);
-		
 
 			// Dynamically allocate memory for the string to return
 			char *result = (char *)malloc(strlen(extractedName) + 1);
@@ -916,7 +933,7 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 
 	if (payload_offset <= 0)
 	{
-		logMessage(__FILE__, __LINE__,"No HTTP payload found in the packet\n");
+		logMessage(__FILE__, __LINE__, "No HTTP payload found in the packet\n");
 		return NULL;
 	}
 
@@ -1026,65 +1043,65 @@ static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 
 void init_database()
 {
-    // Check if the database file exists
-    if (access(db_path, F_OK) != -1)
-    {
-        // Database file exists, open it
-        if (sqlite3_open(db_path, &db) != SQLITE_OK)
-        {
-            // Handle database opening error
-           logMessage(__FILE__, __LINE__,"Error opening the database: %s\n", sqlite3_errmsg(db));
-            // You may want to exit or return an error code here
-        }
-    }
-    else
-    {
-        // Database file does not exist, create it
-        if (sqlite3_open(db_path, &db) != SQLITE_OK)
-        {
-            // Handle database creation error
-           logMessage(__FILE__, __LINE__,"Error creating the database: %s\n", sqlite3_errmsg(db));
-            // You may want to exit or return an error code here
-        }
-    }
+	// Check if the database file exists
+	if (access(db_path, F_OK) != -1)
+	{
+		// Database file exists, open it
+		if (sqlite3_open(db_path, &db) != SQLITE_OK)
+		{
+			// Handle database opening error
+			logMessage(__FILE__, __LINE__, "Error opening the database: %s\n", sqlite3_errmsg(db));
+			// You may want to exit or return an error code here
+		}
+	}
+	else
+	{
+		// Database file does not exist, create it
+		if (sqlite3_open(db_path, &db) != SQLITE_OK)
+		{
+			// Handle database creation error
+			logMessage(__FILE__, __LINE__, "Error creating the database: %s\n", sqlite3_errmsg(db));
+			// You may want to exit or return an error code here
+		}
+	}
 
-    // Check if the 'policies' table exists
-    char *check_table_sql = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='policies';";
-    sqlite3_stmt *stmt;
-    int result = sqlite3_prepare_v2(db, check_table_sql, -1, &stmt, NULL);
+	// Check if the 'policies' table exists
+	char *check_table_sql = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='policies';";
+	sqlite3_stmt *stmt;
+	int result = sqlite3_prepare_v2(db, check_table_sql, -1, &stmt, NULL);
 
-    if (result == SQLITE_OK)
-    {
-        if (sqlite3_step(stmt) == SQLITE_ROW)
-        {
-            int table_count = sqlite3_column_int(stmt, 0);
-            if (table_count == 0)
-            {
-                // 'policies' table does not exist, create it
-                char *create_table_sql = "CREATE TABLE policies (id INTEGER PRIMARY KEY, ip_address TEXT, domain TEXT);";
-                if (sqlite3_exec(db, create_table_sql, NULL, 0, NULL) != SQLITE_OK)
-                {
-                    logMessage(__FILE__, __LINE__,"Error creating the 'policies' table: %s\n", sqlite3_errmsg(db));
-                    // You may want to exit or return an error code here
-                }
-                else
-                {
-                   logMessage(__FILE__, __LINE__,"Created 'policies' table.\n");
-                }
-            }
-            else
-            {
-               logMessage(__FILE__, __LINE__,"'policies' table already exists.\n");
-            }
-        }
-    }
-    else
-    {
-        logMessage(__FILE__, __LINE__,"Error checking for 'policies' table: %s\n", sqlite3_errmsg(db));
-        // You may want to exit or return an error code here
-    }
+	if (result == SQLITE_OK)
+	{
+		if (sqlite3_step(stmt) == SQLITE_ROW)
+		{
+			int table_count = sqlite3_column_int(stmt, 0);
+			if (table_count == 0)
+			{
+				// 'policies' table does not exist, create it
+				char *create_table_sql = "CREATE TABLE policies (id TEXT PRIMARY KEY, ip_address TEXT, domain TEXT);";
+				if (sqlite3_exec(db, create_table_sql, NULL, 0, NULL) != SQLITE_OK)
+				{
+					logMessage(__FILE__, __LINE__, "Error creating the 'policies' table: %s\n", sqlite3_errmsg(db));
+					// You may want to exit or return an error code here
+				}
+				else
+				{
+					logMessage(__FILE__, __LINE__, "Created 'policies' table.\n");
+				}
+			}
+			else
+			{
+				logMessage(__FILE__, __LINE__, "'policies' table already exists.\n");
+			}
+		}
+	}
+	else
+	{
+		logMessage(__FILE__, __LINE__, "Error checking for 'policies' table: %s\n", sqlite3_errmsg(db));
+		// You may want to exit or return an error code here
+	}
 
-    sqlite3_finalize(stmt); // Finalize the prepared statement
+	sqlite3_finalize(stmt); // Finalize the prepared statement
 }
 
 static inline bool ip_checker(struct rte_mbuf *rx_pkt)
@@ -1121,7 +1138,7 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 	if (result != SQLITE_OK)
 	{
 		// Handle query preparation error
-		logMessage(__FILE__, __LINE__,"Error preparing SQL query: %s\n", sqlite3_errmsg(db));
+		logMessage(__FILE__, __LINE__, "Error preparing SQL query: %s\n", sqlite3_errmsg(db));
 		return false;
 	}
 
@@ -1145,8 +1162,9 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 			break;
 		}
 	}
-	
-	if(count > 0){
+
+	if (count > 0)
+	{
 		logMessage(__FILE__, __LINE__, "IP: %s has been blocked\n", dest_ip_str);
 		return true;
 	}
@@ -1155,68 +1173,68 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 
 static inline bool domain_checker(char *domain)
 {
-    if (domain == NULL)
-    {
-        return false;
-    }
+	if (domain == NULL)
+	{
+		return false;
+	}
 
-    if (!db)
-    {
-        // Database is not initialized
-        return false;
-    }
+	if (!db)
+	{
+		// Database is not initialized
+		return false;
+	}
 
-    // Check the cache first
-    for (int i = 0; i < CACHE_SIZE; i++)
-    {
-        if (domain_cache[i].exists && strcmp(domain, domain_cache[i].domain) == 0)
-        {
-            return true; // Domain found in cache
-        }
-    }
+	// Check the cache first
+	for (int i = 0; i < CACHE_SIZE; i++)
+	{
+		if (domain_cache[i].exists && strcmp(domain, domain_cache[i].domain) == 0)
+		{
+			return true; // Domain found in cache
+		}
+	}
 
-    // Prepare an SQL query to check if the domain exists in the database
-    char query[256];
-    snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE domain = '%s'", domain);
+	// Prepare an SQL query to check if the domain exists in the database
+	char query[256];
+	snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE domain = '%s'", domain);
 
-    // Execute the SQL query
-    sqlite3_stmt *stmt;
-    int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+	// Execute the SQL query
+	sqlite3_stmt *stmt;
+	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
 
-    if (result != SQLITE_OK)
-    {
-        return false;
-    }
+	if (result != SQLITE_OK)
+	{
+		return false;
+	}
 
-    // Execute the query and check if the domain exists in the database
-    int count = 0;
-    if (sqlite3_step(stmt) == SQLITE_ROW)
-    {
-        count = sqlite3_column_int(stmt, 0);
-    }
+	// Execute the query and check if the domain exists in the database
+	int count = 0;
+	if (sqlite3_step(stmt) == SQLITE_ROW)
+	{
+		count = sqlite3_column_int(stmt, 0);
+	}
 
-    // Finalize the statement
-    sqlite3_finalize(stmt);
+	// Finalize the statement
+	sqlite3_finalize(stmt);
 
-    // Cache the result
-    for (int i = 0; i < CACHE_SIZE; i++)
-    {
-        if (!domain_cache[i].exists)
-        {
-            strncpy(domain_cache[i].domain, domain, sizeof(domain_cache[i].domain) - 1);
-            domain_cache[i].domain[sizeof(domain_cache[i].domain) - 1] = '\0'; // Ensure null-terminated
-            domain_cache[i].exists = (count > 0);
-            break;
-        }
-    }
+	// Cache the result
+	for (int i = 0; i < CACHE_SIZE; i++)
+	{
+		if (!domain_cache[i].exists)
+		{
+			strncpy(domain_cache[i].domain, domain, sizeof(domain_cache[i].domain) - 1);
+			domain_cache[i].domain[sizeof(domain_cache[i].domain) - 1] = '\0'; // Ensure null-terminated
+			domain_cache[i].exists = (count > 0);
+			break;
+		}
+	}
 
-    if(count > 0){
+	if (count > 0)
+	{
 		logMessage(__FILE__, __LINE__, "Domain: %s has been blocked\n", domain);
 		return true;
 	}
 	return false;
 }
-
 
 static inline void
 lcore_stats_process(void)
@@ -1251,7 +1269,6 @@ lcore_stats_process(void)
 	}
 }
 
-
 static inline void
 lcore_main_process(void)
 {
@@ -1268,13 +1285,13 @@ lcore_main_process(void)
 	if (rte_eth_dev_socket_id(port) >= 0 &&
 		rte_eth_dev_socket_id(port) !=
 			(int)rte_socket_id())
-		logMessage(__FILE__, __LINE__,"WARNING, port %u is on remote NUMA node to "
-			   "polling thread.\n\tPerformance will "
-			   "not be optimal.\n",
-			   port);
+		logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
+									   "polling thread.\n\tPerformance will "
+									   "not be optimal.\n",
+				   port);
 
-	logMessage(__FILE__, __LINE__,"\nCore %u forwarding packets. [Ctrl+C to quit]\n",
-		   rte_lcore_id());
+	logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
+			   rte_lcore_id());
 
 	// Main work of application loop
 	while (!force_quit)
@@ -1298,13 +1315,13 @@ lcore_main_process(void)
 				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_client == NULL)
 				{
-					logMessage(__FILE__, __LINE__,"Error copying packet to RST Client\n");
+					logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
 				}
 				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_server == NULL)
 				{
-					logMessage(__FILE__, __LINE__,"Error copying packet to RST Server\n");
+					logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet
 				}
 
@@ -1316,7 +1333,7 @@ lcore_main_process(void)
 				const uint16_t rst_client_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_client, 1);
 				if (rst_client_tx_count == 0)
 				{
-					logMessage(__FILE__, __LINE__,"Error sending packet to client\n");
+					logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
 					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
 				}
 				else
@@ -1327,7 +1344,7 @@ lcore_main_process(void)
 				const uint16_t rst_server_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_server, 1);
 				if (rst_server_tx_count == 0)
 				{
-					logMessage(__FILE__, __LINE__,"Error sending packet to server\n");
+					logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
 					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
 				}
 				else
@@ -1343,14 +1360,12 @@ lcore_main_process(void)
 	}
 }
 
-
 size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t real_size = size * nmemb;
 	logMessage(__FILE__, __LINE__, "Heartbeat Response: %.*s \n", (int)real_size, (char *)contents);
 	return real_size;
 }
-
 
 static inline void
 lcore_heartbeat_process()
@@ -1403,13 +1418,11 @@ lcore_heartbeat_process()
 	curl_global_cleanup();
 }
 
-
 static inline void
 lcore_sync_database()
 {
 	run_kafka_consumer();
 }
-
 
 int main(int argc, char *argv[])
 {
