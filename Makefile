@@ -36,6 +36,10 @@ LDFLAGS_NETWORK = $(shell echo -lcurl -ljansson)
 LDFLAGS_SHARED += -lsqlite3 # Add SQLite3 linker flag
 LDFLAGS_STATIC += -lsqlite3 # Add SQLite3 linker flag
 
+# Add librdkafka library flags
+LDFLAGS_SHARED += $(shell $(PKGCONF) --libs rdkafka)
+LDFLAGS_STATIC += $(shell $(PKGCONF) --static --libs rdkafka)
+
 ifeq ($(MAKECMDGOALS),static)
 # check for broken pkg-config
 ifeq ($(shell echo $(LDFLAGS_STATIC) | grep 'whole-archive.*l:lib.*no-whole-archive'),)
@@ -62,4 +66,3 @@ build:
 clean:
 	rm -f build/$(APP) build/$(APP)-static build/$(APP)-shared build/$(APP2)
 	test -d build && rmdir -p build && rm -rf stats && rm -rf logs || true
-

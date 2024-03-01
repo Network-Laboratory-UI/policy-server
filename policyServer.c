@@ -20,6 +20,8 @@
 #include <curl/curl.h>
 #include <jansson.h>
 #include <sqlite3.h>
+#include <librdkafka/rdkafka.h>
+
 
 // DPDK library
 #include <rte_eal.h>
@@ -29,8 +31,6 @@
 #include <rte_mbuf.h>
 #include <rte_tcp.h>
 #include <rte_pdump.h>
-
-
 
 // ======================================================= THE DEFINE =======================================================
 
@@ -47,13 +47,15 @@ uint32_t PS_ID;
 #define CACHE_SIZE 1000
 #define RTE_TCP_RST 0x04
 
+
+#define KAFKA_TOPIC "dpdk-blocked-list"
+#define KAFKA_BROKER "192.168.0.90:9092"
 // Define the statistics file name
 // #define STAT_FILE "stats/stats"
 // #define STAT_FILE_EXT ".csv"
 char STAT_FILE[100];
 char STAT_FILE_EXT[100];
 char HOSTNAME[100];
-
 
 static const char *db_path = "/home/ubuntu/policy.db";
 static sqlite3 *db;
@@ -66,6 +68,17 @@ struct IP_Cache
 	bool exists;
 };
 static struct IP_Cache ip_cache[CACHE_SIZE];
+
+
+
+// Structure to hold domain cache entries
+struct DomainCacheEntry {
+    char domain[256];
+    bool exists;
+};
+
+// Cache for domain results
+static struct DomainCacheEntry domain_cache[CACHE_SIZE];
 
 // Timer period for statistics
 static uint32_t TIMER_PERIOD_STATS; // 1 second
@@ -92,16 +105,6 @@ struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
 struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
 
-/*
-* The log message function
-* Log the message to the log file
-* @param filename
-* 	the name of the file
-* @param line
-* 	the line of the file
-* @param format
-* 	the format of the message
-*/
 void logMessage(const char *filename, int line, const char *format, ...)
 {
 	// Open the log file in append mode
@@ -133,15 +136,179 @@ void logMessage(const char *filename, int line, const char *format, ...)
 	// Close the file
 	fclose(file);
 }
+void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
+{
+	if (rkmessage->err)
+	{
+		logMessage(__FILE__, __LINE__, "Kafka error: %s\n", rd_kafka_message_errstr(rkmessage));
+		return;
+	}
+	logMessage(__FILE__, __LINE__, "Received message: %.*s\n", (int)rkmessage->len, (char *)rkmessage->payload);
 
-/*
- * The port initialization function
- * Initialize the port with the given port number and mbuf pool
- * @param port
- * 	the port number
- * @param mbuf_pool
- * 	pointer to a memory pool of mbufs (memory buffers)
- */
+	// Parse JSON message
+	json_t *root;
+	json_error_t error;
+	root = json_loadb(rkmessage->payload, rkmessage->len, 0, &error);
+	if (!root)
+	{
+		logMessage(__FILE__, __LINE__, "JSON parsing error: %s\n", error.text);
+		return;
+	}
+
+	// Extract fields from JSON
+	json_t *createdBlockedList = json_object_get(root, "createdBlockedList");
+	if (!createdBlockedList || !json_is_object(createdBlockedList))
+	{
+		logMessage(__FILE__, __LINE__, "Key 'createdBlockedList' not found or not an object\n");
+		json_decref(root);
+		return;
+	}
+
+	json_t *domain = json_object_get(createdBlockedList, "domain");
+	if (!domain || !json_is_string(domain))
+	{
+		logMessage(__FILE__, __LINE__, "Key 'domain' not found or not a string\n");
+		json_decref(root);
+		return;
+	}
+
+	const char *domain_str = json_string_value(domain);
+	if (!domain_str)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to get 'domain' value as string\n");
+		json_decref(root);
+		return;
+	}
+
+	 json_t *ip_add = json_object_get(createdBlockedList, "ip_add");
+    if (!ip_add || !json_is_string(ip_add)) {
+       logMessage(__FILE__, __LINE__, "Key 'ip_add' not found or not a string\n");
+        json_decref(root);
+        return;
+    }
+    const char *ip_str = json_string_value(ip_add);
+    if (!ip_str) {
+        logMessage(__FILE__, __LINE__, "Failed to get 'ip_add' value as string\n");
+        json_decref(root);
+        return;
+    }
+
+	 json_t *type = json_object_get(root, "type");
+    if (!type || !json_is_string(type)) {
+        logMessage(__FILE__, __LINE__, "Key 'type' not found or not a string\n");
+        json_decref(root);
+        return;
+    }
+    const char *type_str = json_string_value(type);
+    if (!type_str) {
+         logMessage(__FILE__, __LINE__,"Failed to get 'type' value as string\n");
+        json_decref(root);
+        return;
+    }
+
+	json_t *id = json_object_get(createdBlockedList, "id");
+    if (!id || !json_is_integer(id)) {
+        logMessage(__FILE__, __LINE__, "Key 'id' not found or not an integer\n");
+        json_decref(root);
+        return;
+    }
+    int id_value = json_integer_value(id);
+
+	// Update SQLite database
+	char sql_query[256];
+
+	 if (strcmp(type_str, "create") == 0) {
+       snprintf(sql_query, sizeof(sql_query), "INSERT INTO policies (id, domain, ip_address) VALUES (%d, '%s', '%s');", id_value, domain_str, ip_str);
+    } else if (strcmp(type_str, "update") == 0) {
+        snprintf(sql_query, sizeof(sql_query), "UPDATE your_table SET domain='%s', ip='%s' WHERE id=%d;", domain_str, ip_str, id_value);
+    } else if (strcmp(type_str, "delete") == 0) {
+        snprintf(sql_query, sizeof(sql_query), "DELETE FROM your_table WHERE id=%d;", id_value);
+    } else {
+        logMessage(__FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
+        json_decref(root);
+        return;
+    }
+
+	// Execute SQL query
+	char *errmsg;
+	if (sqlite3_exec(db, sql_query, NULL, 0, &errmsg) != SQLITE_OK)
+	{
+		logMessage(__FILE__, __LINE__, "SQL error: %s\n", errmsg);
+		sqlite3_free(errmsg);
+	}
+	else
+	{
+		logMessage(__FILE__, __LINE__, "%s updated to the database\n", domain_str);
+	}
+
+	json_decref(root);
+}
+
+// Function to set up Kafka consumer
+void run_kafka_consumer() {
+    rd_kafka_t *rk;           // Kafka handle
+    rd_kafka_conf_t *conf;    // Kafka configuration
+    rd_kafka_resp_err_t err;  // Kafka error handler
+    rd_kafka_topic_t *topic;  // Kafka topic
+
+    // Kafka configuration
+    conf = rd_kafka_conf_new();
+    if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER, NULL, 0) != RD_KAFKA_CONF_OK) {
+        logMessage(__FILE__, __LINE__, "Failed to set Kafka broker configuration\n");
+        return;
+    }
+
+    // Create Kafka consumer
+    rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, NULL, 0);
+    if (!rk) {
+        logMessage(__FILE__, __LINE__, "Failed to create Kafka consumer\n");
+        return;
+    }
+
+    // Subscribe to Kafka topic
+    topic = rd_kafka_topic_new(rk, KAFKA_TOPIC, NULL);
+    if (!topic) {
+        logMessage(__FILE__, __LINE__,"Failed to create Kafka topic object\n");
+        rd_kafka_destroy(rk);
+        return;
+    }
+
+    // Open SQLite database
+    if (sqlite3_open(db_path, &db) != SQLITE_OK) {
+        logMessage(__FILE__, __LINE__, "Can't open database: %s\n", sqlite3_errmsg(db));
+        rd_kafka_topic_destroy(topic);
+        rd_kafka_destroy(rk);
+        return;
+    }
+
+    // Start consuming messages
+    if (rd_kafka_consume_start(topic, 0, RD_KAFKA_OFFSET_BEGINNING) == -1) {
+        logMessage(__FILE__, __LINE__, "Failed to start consuming messages\n");
+        rd_kafka_topic_destroy(topic);
+        rd_kafka_destroy(rk);
+        sqlite3_close(db);
+        return;
+    }
+
+    // Loop to consume messages
+    while (!force_quit) {
+        rd_kafka_message_t *rkmessage;
+        rkmessage = rd_kafka_consume(topic, 0, 1000); // 1 second timeout
+        if (rkmessage) {
+            msg_consume(rkmessage, db);
+            rd_kafka_message_destroy(rkmessage);
+        }
+    }
+
+    // Cleanup
+    rd_kafka_consume_stop(topic, 0);
+    rd_kafka_topic_destroy(topic);
+    rd_kafka_destroy(rk);
+    sqlite3_close(db);
+}
+
+
+
 static inline int
 port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 {
@@ -166,8 +333,8 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	retval = rte_eth_dev_info_get(port, &dev_info);
 	if (retval != 0)
 	{
-	 	logMessage(__FILE__, __LINE__, "Error during getting device (port %u) info: %s\n",
-			   port, strerror(-retval));
+		logMessage(__FILE__, __LINE__, "Error during getting device (port %u) info: %s\n",
+				   port, strerror(-retval));
 		return retval;
 	}
 
@@ -215,9 +382,8 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	if (retval != 0)
 		return retval;
 
-	logMessage(__FILE__, __LINE__, "Port %u MAC: %02" PRIx8 " %02" PRIx8 " %02" PRIx8
-		   " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 "\n",
-		   port, RTE_ETHER_ADDR_BYTES(&addr));
+	logMessage(__FILE__, __LINE__, "Port %u MAC: %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 "\n",
+			   port, RTE_ETHER_ADDR_BYTES(&addr));
 
 	// SET THE PORT TO PROMOCIOUS
 	retval = rte_eth_promiscuous_enable(port);
@@ -227,12 +393,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	return 0;
 }
 
-/*
- * The open file function
- * Open the file with the given filename
- * @param filename
- * 	the name of the file
- */
+
 static FILE *open_file(const char *filename)
 {
 	logMessage(__FILE__, __LINE__, "Opening file %s\n", filename);
@@ -295,33 +456,19 @@ print_stats(void)
 	fflush(stdout);
 }
 
-/*
- * The print statistics csv header function
- * Print the header of the statistics to the csv file
- * @param f
- * 	the file pointer
- */
+
 static void print_stats_csv_header(FILE *f)
 {
-	fprintf(f, "ps_id,rstClient,rstServer,rx_0_count,rx_0_size,tx_1_count,tx_1_size,time,rx_throughput,tx_throughput\n"); // Header row
+	fprintf(f, "ps_id,rstClient,rstServer,rx_0_count,tx_0_count,rx_0_size,tx_0_size,rx_0_drop,rx_0_error,tx_0_error,rx_0_mbuf,rx_1_count,tx_1_count,rx_1_size,tx_1_size,rx_1_drop,rx_1_error,tx_1_error,rx_1_mbuf,time,throughput\n"); // Header row
 }
 
-/*
- * The print statistics csv function
- * Print the statistics to the csv file
- * @param f
- * 	the file pointer
- */
+
 static void print_stats_csv(FILE *f, char *timestamp)
 {
 	// Write data to the CSV file
-	fprintf(f, "%d,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld,%ld\n", 1, port_statistics[0].rstClient, port_statistics[0].rstServer, port_statistics[0].rx_count, port_statistics[0].rx_size, port_statistics[0].tx_count, port_statistics[0].tx_size, timestamp, port_statistics[0].throughput,port_statistics[1].throughput);
+	fprintf(f, "%d,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", 1, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[0].tx_count, port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, port_statistics[0].mbuf_err, port_statistics[1].rx_count, port_statistics[1].tx_count, port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, port_statistics[1].mbuf_err, timestamp, port_statistics[1].throughput);
 }
 
-/*
- * The clear statistics function
- * Clear the statistics
- */
 static void clear_stats(void)
 {
 	memset(port_statistics, 0, RTE_MAX_ETHPORTS * sizeof(struct port_statistics_data));
@@ -386,7 +533,7 @@ int load_config_file()
 			else if (strcmp(key, "STAT_FILE") == 0)
 			{
 				strcpy(STAT_FILE, value);
-		 		logMessage(__FILE__, __LINE__, "STAT_FILE: %s\n", STAT_FILE);
+				logMessage(__FILE__, __LINE__, "STAT_FILE: %s\n", STAT_FILE);
 			}
 			else if (strcmp(key, "STAT_FILE_EXT") == 0)
 			{
@@ -420,14 +567,12 @@ int load_config_file()
 	return 0;
 }
 
-
-
 /*
-* The termination signal handler
-* Handle the termination signal
-* @param signum
-* 	the signal number
-*/
+ * The termination signal handler
+ * Handle the termination signal
+ * @param signum
+ * 	the signal number
+ */
 static void
 signal_handler(int signum)
 {
@@ -439,7 +584,8 @@ signal_handler(int signum)
 }
 
 static void
-populate_json_array(json_t *jsonArray, char *timestamp){
+populate_json_array(json_t *jsonArray, char *timestamp)
+{
 	// Create object for the statistics
 	json_t *jsonObject = json_object();
 
@@ -532,7 +678,7 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 
 		// print out the stats to csv
 		print_stats_csv(*f_stat, time_str);
-		populate_json_array(jsonArray,time_str);
+		populate_json_array(jsonArray, time_str);
 		fflush(*f_stat);
 
 		// clear the stats
@@ -566,7 +712,8 @@ send_stats_to_server(json_t *jsonArray)
 {
 	CURL *curl;
 	CURLcode res;
-	struct curl_slist *headers = curl_slist_append(headers, "Content-Type: application/json");;
+	struct curl_slist *headers = curl_slist_append(headers, "Content-Type: application/json");
+	;
 	char *jsonString = json_dumps(jsonArray, 0);
 	char url[256];
 
@@ -601,7 +748,8 @@ send_stats_to_server(json_t *jsonArray)
 }
 
 static void
-send_stats(json_t *jsonArray, int *last_run_send){
+send_stats(json_t *jsonArray, int *last_run_send)
+{
 
 	// Get the current time
 	time_t rawtime;
@@ -611,7 +759,8 @@ send_stats(json_t *jsonArray, int *last_run_send){
 	timeinfo = localtime(&rawtime);
 
 	int current_min = timeinfo->tm_min;
-	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_send){
+	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_send)
+	{
 		// send the statistics to the server
 		logMessage(__FILE__, __LINE__, "Sending statistics to server\n");
 		send_stats_to_server(jsonArray);
@@ -620,7 +769,8 @@ send_stats(json_t *jsonArray, int *last_run_send){
 }
 
 static void
-collect_stats(){
+collect_stats()
+{
 	// Get the statistics
 	rte_eth_stats_get(1, &stats_1);
 	rte_eth_stats_get(0, &stats_0);
@@ -650,7 +800,6 @@ collect_stats(){
 	// Calculate the throughput
 	port_statistics[1].throughput = port_statistics[1].rx_size / TIMER_PERIOD_STATS;
 	port_statistics[0].throughput = port_statistics[0].tx_size / TIMER_PERIOD_STATS;
-
 }
 
 static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
@@ -728,6 +877,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 			extractedName[nameIndex] = '\0'; // Null-terminate the string
 			// printf("Name Length: %d\n", namelength);
 			// printf("Extracted Name: %s\n", extractedName);
+		
 
 			// Dynamically allocate memory for the string to return
 			char *result = (char *)malloc(strlen(extractedName) + 1);
@@ -744,7 +894,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 {
-	
+
 	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
 
 	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
@@ -790,7 +940,6 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 			{
 				strncpy(host, host_start + 6, host_length);
 				host[host_length] = '\0'; // Null-terminate the string
-				// printf("HTTP Host: %s\n", host);
 				return host;
 			}
 			free(host); // Free allocated memory in case of errors
@@ -900,7 +1049,7 @@ void init_database()
 		else
 		{
 			// Initialize the database schema if needed
-			sqlite3_exec(db, "CREATE TABLE policies (ip_address TEXT, domain TEXT)", NULL, 0, NULL);
+			sqlite3_exec(db, "CREATE TABLE policies (id INTEGER PRIMARY KEY, ip_address TEXT, domain TEXT)", NULL, 0, NULL);
 		}
 	}
 }
@@ -963,59 +1112,79 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 			break;
 		}
 	}
-	// printf("Count: %d\n", count)
-	return count > 0;
+	
+	if(count > 0){
+		logMessage(__FILE__, __LINE__, "IP: %s has been blocked\n", dest_ip_str);
+		return true;
+	}
+	return false;
 }
 
 static inline bool domain_checker(char *domain)
 {
-	if (domain == NULL)
-	{
-		return false;
+    if (domain == NULL)
+    {
+        return false;
+    }
+
+    if (!db)
+    {
+        // Database is not initialized
+        return false;
+    }
+
+    // Check the cache first
+    for (int i = 0; i < CACHE_SIZE; i++)
+    {
+        if (domain_cache[i].exists && strcmp(domain, domain_cache[i].domain) == 0)
+        {
+            return true; // Domain found in cache
+        }
+    }
+
+    // Prepare an SQL query to check if the domain exists in the database
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE domain = '%s'", domain);
+
+    // Execute the SQL query
+    sqlite3_stmt *stmt;
+    int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+
+    if (result != SQLITE_OK)
+    {
+        return false;
+    }
+
+    // Execute the query and check if the domain exists in the database
+    int count = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        count = sqlite3_column_int(stmt, 0);
+    }
+
+    // Finalize the statement
+    sqlite3_finalize(stmt);
+
+    // Cache the result
+    for (int i = 0; i < CACHE_SIZE; i++)
+    {
+        if (!domain_cache[i].exists)
+        {
+            strncpy(domain_cache[i].domain, domain, sizeof(domain_cache[i].domain) - 1);
+            domain_cache[i].domain[sizeof(domain_cache[i].domain) - 1] = '\0'; // Ensure null-terminated
+            domain_cache[i].exists = (count > 0);
+            break;
+        }
+    }
+
+    if(count > 0){
+		logMessage(__FILE__, __LINE__, "Domain: %s has been blocked\n", domain);
+		return true;
 	}
-
-	if (!db)
-	{
-		// Database is not initialized
-		return false;
-	}
-
-	// Prepare an SQL query to check if the destination IP exists in the database
-	char query[256];
-	snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE domain = '%s'", domain);
-
-	// Execute the SQL query
-	sqlite3_stmt *stmt;
-	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
-
-	if (result != SQLITE_OK)
-	{
-		return false;
-	}
-
-	// Execute the query and check if the domain exists in the database
-	int count = 0;
-	if (sqlite3_step(stmt) == SQLITE_ROW)
-	{
-		count = sqlite3_column_int(stmt, 0);
-	}
-
-	// Finalize the statement
-	sqlite3_finalize(stmt);
-	// printf("Count: %d\n", count);
-	return count > 0;
+	return false;
 }
 
-/*
- * The lcore stast process
- * Running all the stats process including
- * - Get the statistics
- * - Update the statistics
- * - Calculate the throughput
- * - Print the statistics
- * - Print the statistics to file
- * - Reset the timer
- */
+
 static inline void
 lcore_stats_process(void)
 {
@@ -1042,29 +1211,20 @@ lcore_stats_process(void)
 		// Print Statistcs to file
 		print_stats_file(&last_run_stat, &last_run_file, &f_stat, jsonArray);
 
-        // Send stats
+		// Send stats
 		send_stats(jsonArray, &last_run_send);
 
 		usleep(1000000 * TIMER_PERIOD_STATS);
 	}
 }
 
-/*
- * The lcore main process
- * Running all the forwarding process including
- * - Get the burst of RX packets
- * - Check the packet type (HTTP or HTTPS)
- * - Send the packet to the right port
- * - Update the statistics
- * - Free up the buffer
- */
+
 static inline void
 lcore_main_process(void)
 {
 	// initialization
 	char *extractedName;
 	uint16_t port;
-	init_database();
 	uint64_t timer_tsc = 0;
 
 	/*
@@ -1098,7 +1258,7 @@ lcore_main_process(void)
 			// extractedName = extractDomainfromHTTPS(rx_pkt);
 			// printf("Extracted Name333333: %s\n", extractedName);
 
-			if (ip_checker(rx_pkt))
+			if (domain_checker(extractDomainfromHTTP(rx_pkt)))
 			{
 
 				// Create a copy of the received packet
@@ -1150,18 +1310,7 @@ lcore_main_process(void)
 	}
 }
 
-/*
- * The write callback function
- * Write the callback function for the heartbeat
- * @param contents
- * 	the contents
- * @param size
- * 	the size
- * @param nmemb
- * 	the nmemb
- * @param userp
- * 	the userp
- */
+
 size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t real_size = size * nmemb;
@@ -1169,61 +1318,63 @@ size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 	return real_size;
 }
 
-/*
- * The lcore heartbeat process
- * Running the heartbeat process
- * - Send the heartbeat to the server
- * - Sleep for 5 seconds
- */
+
 static inline void
 lcore_heartbeat_process()
 {
-    CURL *curl;
-    CURLcode res;
-    char post_fields[256];
+	CURL *curl;
+	CURLcode res;
+	char post_fields[256];
 	char url[256];
-    char timestamp_str[25];
-    time_t timestamp;
-    struct tm *tm_info;
-    struct curl_slist *headers = NULL;
+	char timestamp_str[25];
+	time_t timestamp;
+	struct tm *tm_info;
+	struct curl_slist *headers = NULL;
 
 	sprintf(url, "%s/ps/heartbeat", HOSTNAME);
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init();
+	curl_global_init(CURL_GLOBAL_DEFAULT);
+	curl = curl_easy_init();
 
-    if (curl)
-    {
-        headers = curl_slist_append(headers, "Content-Type: application/json");
+	if (curl)
+	{
+		headers = curl_slist_append(headers, "Content-Type: application/json");
 
-        while (!force_quit)
-        {
-            timestamp = time(NULL);
-            tm_info = gmtime(&timestamp);
-            strftime(timestamp_str, 25, "%Y-%m-%dT%H:%M:%S.000Z", tm_info);
+		while (!force_quit)
+		{
+			timestamp = time(NULL);
+			tm_info = gmtime(&timestamp);
+			strftime(timestamp_str, 25, "%Y-%m-%dT%H:%M:%S.000Z", tm_info);
 
-            sprintf(post_fields, "[{\"ps_id\": %d, \"time\": \"%s\"}]", PS_ID, timestamp_str);
+			sprintf(post_fields, "[{\"ps_id\": %d, \"time\": \"%s\"}]", PS_ID, timestamp_str);
 
-            curl_easy_setopt(curl, CURLOPT_URL, url);
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_fields);
-            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+			curl_easy_setopt(curl, CURLOPT_URL, url);
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_fields);
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 
-            res = curl_easy_perform(curl);
+			res = curl_easy_perform(curl);
 
-            if (res != CURLE_OK)
-            {
-                logMessage(__FILE__, __LINE__, "Heartbeat failed: %s\n", curl_easy_strerror(res));
-            }
-            sleep(5);
-        }
+			if (res != CURLE_OK)
+			{
+				logMessage(__FILE__, __LINE__, "Heartbeat failed: %s\n", curl_easy_strerror(res));
+			}
+			sleep(5);
+		}
 
-        curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);
-    }	
+		curl_slist_free_all(headers);
+		curl_easy_cleanup(curl);
+	}
 
-    curl_global_cleanup();
+	curl_global_cleanup();
+}
+
+
+static inline void
+lcore_sync_database()
+{
+	run_kafka_consumer();
 }
 
 
@@ -1232,7 +1383,8 @@ int main(int argc, char *argv[])
 	struct rte_mempool *mbuf_pool;
 	unsigned nb_ports;
 	uint16_t portid;
-	unsigned lcore_id, lcore_main = 0, lcore_stats = 0;
+	unsigned lcore_id, lcore_main = 0, lcore_stats = 0, lcore_db = 0;
+	init_database();
 
 	// log the starting of the application
 	logMessage(__FILE__, __LINE__, "Starting the application\n");
@@ -1294,10 +1446,10 @@ int main(int argc, char *argv[])
 	}
 
 	// count the number of lcore
-	if (rte_lcore_count() < 3)
+	if (rte_lcore_count() < 4)
 	{
-		logMessage(__FILE__, __LINE__, "lcore must be more than equal 3\n");
-		rte_exit(EXIT_FAILURE, "lcore must be more than equal 3\n");
+		logMessage(__FILE__, __LINE__, "lcore must be more than equal 4\n");
+		rte_exit(EXIT_FAILURE, "lcore must be more than equal 4\n");
 	}
 
 	RTE_LCORE_FOREACH_WORKER(lcore_id)
@@ -1319,6 +1471,12 @@ int main(int argc, char *argv[])
 			logMessage(__FILE__, __LINE__, "Stats on core %u\n", lcore_id);
 			continue;
 		}
+		if (lcore_db == 0)
+		{
+			lcore_db = lcore_id;
+			logMessage(__FILE__, __LINE__, "DB on core %u\n", lcore_id);
+			continue;
+		}
 	}
 
 	// run the lcore main function
@@ -1330,6 +1488,10 @@ int main(int argc, char *argv[])
 	logMessage(__FILE__, __LINE__, "Run the stats\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_stats_process,
 						  NULL, lcore_stats);
+
+	logMessage(__FILE__, __LINE__, "Sync the Database\n");
+	rte_eal_remote_launch((lcore_function_t *)lcore_sync_database,
+						  NULL, lcore_db);
 
 	// run the heartbeat
 	logMessage(__FILE__, __LINE__, "Run the heartbeat\n");
