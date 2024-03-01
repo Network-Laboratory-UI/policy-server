@@ -809,7 +809,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
 	{
-		printf("Packet is not an IPv4 packet\n");
+		logMessage(__FILE__, __LINE__,"Packet is not an IPv4 packet\n");
 		return NULL;
 	}
 
@@ -818,7 +818,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (ip_hdr->next_proto_id != IPPROTO_TCP)
 	{
-		printf("Packet is not a TCP packet\n");
+		logMessage(__FILE__, __LINE__,"Packet is not a TCP packet\n");
 		return NULL;
 	}
 
@@ -830,7 +830,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (tls_offset <= 0)
 	{
-		printf("No TLS header found in the packet\n");
+		logMessage(__FILE__, __LINE__,"No TLS header found in the packet\n");
 		return NULL;
 	}
 
@@ -839,7 +839,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (tls_payload_length <= 0)
 	{
-		printf("No TLS payload found in the packet\n");
+		logMessage(__FILE__, __LINE__,"No TLS payload found in the packet\n");
 		return NULL;
 	}
 
@@ -848,7 +848,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (start_offset < 0 || end_offset >= tls_payload_length)
 	{
-		printf("Invalid byte range specified for the TLS payload\n");
+		logMessage(__FILE__, __LINE__,"Invalid byte range specified for the TLS payload\n");
 		return NULL;
 	}
 
@@ -916,7 +916,7 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 
 	if (payload_offset <= 0)
 	{
-		printf("No HTTP payload found in the packet\n");
+		logMessage(__FILE__, __LINE__,"No HTTP payload found in the packet\n");
 		return NULL;
 	}
 
@@ -1026,32 +1026,65 @@ static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 
 void init_database()
 {
-	// Check if the database file exists
-	if (access(db_path, F_OK) != -1)
-	{
-		// Database file exists, open it
-		if (sqlite3_open(db_path, &db) != SQLITE_OK)
-		{
-			// Handle database opening error
-			printf("Error opening the database: %s\n", sqlite3_errmsg(db));
-			// You may want to exit or return an error code here
-		}
-	}
-	else
-	{
-		// Database file does not exist, create it
-		if (sqlite3_open(db_path, &db) != SQLITE_OK)
-		{
-			// Handle database creation error
-			printf("Error creating the database: %s\n", sqlite3_errmsg(db));
-			// You may want to exit or return an error code here
-		}
-		else
-		{
-			// Initialize the database schema if needed
-			sqlite3_exec(db, "CREATE TABLE policies (id INTEGER PRIMARY KEY, ip_address TEXT, domain TEXT)", NULL, 0, NULL);
-		}
-	}
+    // Check if the database file exists
+    if (access(db_path, F_OK) != -1)
+    {
+        // Database file exists, open it
+        if (sqlite3_open(db_path, &db) != SQLITE_OK)
+        {
+            // Handle database opening error
+           logMessage(__FILE__, __LINE__,"Error opening the database: %s\n", sqlite3_errmsg(db));
+            // You may want to exit or return an error code here
+        }
+    }
+    else
+    {
+        // Database file does not exist, create it
+        if (sqlite3_open(db_path, &db) != SQLITE_OK)
+        {
+            // Handle database creation error
+           logMessage(__FILE__, __LINE__,"Error creating the database: %s\n", sqlite3_errmsg(db));
+            // You may want to exit or return an error code here
+        }
+    }
+
+    // Check if the 'policies' table exists
+    char *check_table_sql = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='policies';";
+    sqlite3_stmt *stmt;
+    int result = sqlite3_prepare_v2(db, check_table_sql, -1, &stmt, NULL);
+
+    if (result == SQLITE_OK)
+    {
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            int table_count = sqlite3_column_int(stmt, 0);
+            if (table_count == 0)
+            {
+                // 'policies' table does not exist, create it
+                char *create_table_sql = "CREATE TABLE policies (id INTEGER PRIMARY KEY, ip_address TEXT, domain TEXT);";
+                if (sqlite3_exec(db, create_table_sql, NULL, 0, NULL) != SQLITE_OK)
+                {
+                    logMessage(__FILE__, __LINE__,"Error creating the 'policies' table: %s\n", sqlite3_errmsg(db));
+                    // You may want to exit or return an error code here
+                }
+                else
+                {
+                   logMessage(__FILE__, __LINE__,"Created 'policies' table.\n");
+                }
+            }
+            else
+            {
+               logMessage(__FILE__, __LINE__,"'policies' table already exists.\n");
+            }
+        }
+    }
+    else
+    {
+        logMessage(__FILE__, __LINE__,"Error checking for 'policies' table: %s\n", sqlite3_errmsg(db));
+        // You may want to exit or return an error code here
+    }
+
+    sqlite3_finalize(stmt); // Finalize the prepared statement
 }
 
 static inline bool ip_checker(struct rte_mbuf *rx_pkt)
@@ -1088,7 +1121,7 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 	if (result != SQLITE_OK)
 	{
 		// Handle query preparation error
-		printf("Error preparing SQL query: %s\n", sqlite3_errmsg(db));
+		logMessage(__FILE__, __LINE__,"Error preparing SQL query: %s\n", sqlite3_errmsg(db));
 		return false;
 	}
 
@@ -1235,12 +1268,12 @@ lcore_main_process(void)
 	if (rte_eth_dev_socket_id(port) >= 0 &&
 		rte_eth_dev_socket_id(port) !=
 			(int)rte_socket_id())
-		printf("WARNING, port %u is on remote NUMA node to "
+		logMessage(__FILE__, __LINE__,"WARNING, port %u is on remote NUMA node to "
 			   "polling thread.\n\tPerformance will "
 			   "not be optimal.\n",
 			   port);
 
-	printf("\nCore %u forwarding packets. [Ctrl+C to quit]\n",
+	logMessage(__FILE__, __LINE__,"\nCore %u forwarding packets. [Ctrl+C to quit]\n",
 		   rte_lcore_id());
 
 	// Main work of application loop
@@ -1265,13 +1298,13 @@ lcore_main_process(void)
 				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_client == NULL)
 				{
-					printf("Error copying packet to RST Client\n");
+					logMessage(__FILE__, __LINE__,"Error copying packet to RST Client\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
 				}
 				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_server == NULL)
 				{
-					printf("Error copying packet to RST Server\n");
+					logMessage(__FILE__, __LINE__,"Error copying packet to RST Server\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet
 				}
 
@@ -1283,7 +1316,7 @@ lcore_main_process(void)
 				const uint16_t rst_client_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_client, 1);
 				if (rst_client_tx_count == 0)
 				{
-					printf("Error sending packet to client\n");
+					logMessage(__FILE__, __LINE__,"Error sending packet to client\n");
 					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
 				}
 				else
@@ -1294,7 +1327,7 @@ lcore_main_process(void)
 				const uint16_t rst_server_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_server, 1);
 				if (rst_server_tx_count == 0)
 				{
-					printf("Error sending packet to server\n");
+					logMessage(__FILE__, __LINE__,"Error sending packet to server\n");
 					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
 				}
 				else
@@ -1489,7 +1522,7 @@ int main(int argc, char *argv[])
 	rte_eal_remote_launch((lcore_function_t *)lcore_stats_process,
 						  NULL, lcore_stats);
 
-	logMessage(__FILE__, __LINE__, "Sync the Database\n");
+	logMessage(__FILE__, __LINE__, "Run the Kafka Broker\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_sync_database,
 						  NULL, lcore_db);
 
