@@ -41,7 +41,7 @@ uint32_t NUM_MBUFS;
 uint32_t MBUF_CACHE_SIZE;
 uint32_t BURST_SIZE;
 uint32_t MAX_TCP_PAYLOAD_LEN;
-uint32_t PS_ID;
+char PS_ID[200];
 
 #define CACHE_SIZE 1000
 #define RTE_TCP_RST 0x04
@@ -140,112 +140,106 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 		logMessage(__FILE__, __LINE__, "Kafka error: %s\n", rd_kafka_message_errstr(rkmessage));
 		return;
 	}
+
 	logMessage(__FILE__, __LINE__, "Received message: %.*s\n", (int)rkmessage->len, (char *)rkmessage->payload);
 
 	// Parse JSON message
-	json_t *root;
 	json_error_t error;
-	root = json_loadb(rkmessage->payload, rkmessage->len, 0, &error);
+	json_t *root = json_loadb(rkmessage->payload, rkmessage->len, 0, &error);
 	if (!root)
 	{
 		logMessage(__FILE__, __LINE__, "JSON parsing error: %s\n", error.text);
 		return;
 	}
 
-	// Extract fields from JSON
-	json_t *createdBlockedList = json_object_get(root, "createdBlockedList");
-	if (!createdBlockedList || !json_is_object(createdBlockedList))
-	{
-		logMessage(__FILE__, __LINE__, "Key 'createdBlockedList' not found or not an object\n");
-		json_decref(root);
-		return;
-	}
+	const char *type_str = NULL;
+	const char *createdBlockedListKey = NULL;
 
-	json_t *domain = json_object_get(createdBlockedList, "domain");
-	if (!domain || !json_is_string(domain))
-	{
-		logMessage(__FILE__, __LINE__, "Key 'domain' not found or not a string\n");
-		json_decref(root);
-		return;
-	}
-
-	const char *domain_str = json_string_value(domain);
-	if (!domain_str)
-	{
-		logMessage(__FILE__, __LINE__, "Failed to get 'domain' value as string\n");
-		json_decref(root);
-		return;
-	}
-
-	json_t *ip_add = json_object_get(createdBlockedList, "ip_add");
-	if (!ip_add || !json_is_string(ip_add))
-	{
-		logMessage(__FILE__, __LINE__, "Key 'ip_add' not found or not a string\n");
-		json_decref(root);
-		return;
-	}
-	const char *ip_str = json_string_value(ip_add);
-	if (!ip_str)
-	{
-		logMessage(__FILE__, __LINE__, "Failed to get 'ip_add' value as string\n");
-		json_decref(root);
-		return;
-	}
-
+	// Check 'type' field
 	json_t *type = json_object_get(root, "type");
 	if (!type || !json_is_string(type))
 	{
 		logMessage(__FILE__, __LINE__, "Key 'type' not found or not a string\n");
-		json_decref(root);
-		return;
+		goto cleanup;
 	}
-	const char *type_str = json_string_value(type);
+	type_str = json_string_value(type);
 	if (!type_str)
 	{
 		logMessage(__FILE__, __LINE__, "Failed to get 'type' value as string\n");
-		json_decref(root);
-		return;
+		goto cleanup;
 	}
 
-	json_t *id = json_object_get(createdBlockedList, "id");
-	if (!id || !json_is_string(id))
+	// Check 'createdBlockedList' based on 'type'
+	if (strcmp(type_str, "create") == 0)
+		createdBlockedListKey = "createdBlockedList";
+	else if (strcmp(type_str, "update") == 0)
+		createdBlockedListKey = "updatedBlockedList";
+	else if (strcmp(type_str, "delete") == 0)
+		createdBlockedListKey = "deletedBlockedList";
+	else
 	{
-		logMessage(__FILE__, __LINE__, "Key 'id' not found or not a string\n");
-		json_decref(root);
-		return;
+		logMessage(__FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
+		goto cleanup;
 	}
-	const char *id_str = json_string_value(id);
-	if (!id_str)
+
+	// Extract 'createdBlockedList'
+	json_t *createdBlockedList = json_object_get(root, createdBlockedListKey);
+	if (!createdBlockedList || !json_is_object(createdBlockedList))
 	{
-		logMessage(__FILE__, __LINE__, "Failed to get 'id' value as string\n");
-		json_decref(root);
-		return;
+		logMessage(__FILE__, __LINE__, "Key '%s' not found or not an object\n", createdBlockedListKey);
+		goto cleanup;
+	}
+
+	// Extract 'domain', 'ip_add', and 'id' fields
+	json_t *domain = json_object_get(createdBlockedList, "domain");
+	json_t *ip_add = json_object_get(createdBlockedList, "ip_add");
+	json_t *id = json_object_get(createdBlockedList, "id");
+
+	if (!domain || !json_is_string(domain) || !ip_add || !json_is_string(ip_add) || !id || !json_is_string(id))
+	{
+		logMessage(__FILE__, __LINE__, "Missing or invalid keys in 'createdBlockedList'\n");
+		goto cleanup;
+	}
+
+	const char *domain_str = json_string_value(domain);
+	const char *ip_str = json_string_value(ip_add);
+	const char *id_str = json_string_value(id);
+
+	if (!domain_str || !ip_str || !id_str)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to get values from 'createdBlockedList'\n");
+		goto cleanup;
 	}
 
 	// Update SQLite database
 	char sql_query[256];
+	int query_len = 0;
 
 	if (strcmp(type_str, "create") == 0)
-	{
-		snprintf(sql_query, sizeof(sql_query), "INSERT INTO policies (id, domain, ip_address) VALUES ('%s', '%s', '%s');", id_str, domain_str, ip_str);
+		query_len = snprintf(sql_query, sizeof(sql_query), "INSERT INTO policies (id, domain, ip_address) VALUES ('%s', '%s', '%s');", id_str, domain_str, ip_str);
+	else if (strcmp(type_str, "update") == 0){
+		query_len = snprintf(sql_query, sizeof(sql_query), "UPDATE policies SET domain='%s', ip_address='%s' WHERE id='%s';", domain_str, ip_str, id_str);
+		memset(ip_cache, 0, sizeof(ip_cache));
+		memset(domain_cache, 0, sizeof(domain_cache));
 	}
-	else if (strcmp(type_str, "update") == 0)
-	{
-		snprintf(sql_query, sizeof(sql_query), "UPDATE your_table SET domain='%s', ip='%s' WHERE id='%s';", domain_str, ip_str, id_str);
-	}
-	else if (strcmp(type_str, "delete") == 0)
-	{
-		snprintf(sql_query, sizeof(sql_query), "DELETE FROM your_table WHERE id='%s';", id_str);
+	else if (strcmp(type_str, "delete") == 0){
+		query_len = snprintf(sql_query, sizeof(sql_query), "DELETE FROM policies WHERE id='%s';", id_str);
+		memset(ip_cache, 0, sizeof(ip_cache));
+		memset(domain_cache, 0, sizeof(domain_cache));
 	}
 	else
 	{
 		logMessage(__FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
-		json_decref(root);
-		return;
+		goto cleanup;
 	}
 
-	// Execute SQL query
-	char *errmsg;
+	if (query_len <= 0 || query_len >= sizeof(sql_query))
+	{
+		logMessage(__FILE__, __LINE__, "SQL query creation error\n");
+		goto cleanup;
+	}
+
+	char *errmsg = NULL;
 	if (sqlite3_exec(db, sql_query, NULL, 0, &errmsg) != SQLITE_OK)
 	{
 		logMessage(__FILE__, __LINE__, "SQL error: %s\n", errmsg);
@@ -256,6 +250,7 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 		logMessage(__FILE__, __LINE__, "%s updated to the database\n", domain_str);
 	}
 
+cleanup:
 	json_decref(root);
 }
 
@@ -431,13 +426,21 @@ static FILE *open_file(const char *filename)
  * Print the statistics to the console
  */
 static void
-print_stats(void)
+print_stats(int *last_run_print)
 {
 	unsigned int portid;
 
 	const char clr[] = {27, '[', '2', 'J', '\0'};
 	const char topLeft[] = {27, '[', '1', ';', '1', 'H', '\0'};
 
+	// set timer
+	time_t rawtime;
+	struct tm *timeinfo;
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+
+	if (timeinfo->tm_sec % TIMER_PERIOD_STATS == 0 && timeinfo->tm_sec != *last_run_print)
+	{
 	// Clear screen and move to top left
 	printf("%s%s", clr, topLeft);
 	printf("POLICY SERVER\n");
@@ -472,8 +475,11 @@ print_stats(void)
 			   port_statistics[portid].err_tx);
 	}
 	printf("\n=====================================================");
+	
 
 	fflush(stdout);
+	*last_run_print = timeinfo->tm_sec;
+	}
 }
 
 static void print_stats_csv_header(FILE *f)
@@ -484,7 +490,7 @@ static void print_stats_csv_header(FILE *f)
 static void print_stats_csv(FILE *f, char *timestamp)
 {
 	// Write data to the CSV file
-	fprintf(f, "%d,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", 1, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[0].tx_count, port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, port_statistics[0].mbuf_err, port_statistics[1].rx_count, port_statistics[1].tx_count, port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, port_statistics[1].mbuf_err, timestamp, port_statistics[1].throughput);
+	fprintf(f, "%s,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", PS_ID, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[0].tx_count, port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, port_statistics[0].mbuf_err, port_statistics[1].rx_count, port_statistics[1].tx_count, port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, port_statistics[1].mbuf_err, timestamp, port_statistics[1].throughput);
 }
 
 static void clear_stats(void)
@@ -568,10 +574,10 @@ int load_config_file()
 				TIMER_PERIOD_SEND = atoi(value);
 				logMessage(__FILE__, __LINE__, "TIMER_PERIOD_SEND: %d\n", TIMER_PERIOD_SEND);
 			}
-			else if (strcmp(key, "ID") == 0)
+			else if (strcmp(key, "ID_PS") == 0)
 			{
-				PS_ID = atoi(value);
-				logMessage(__FILE__, __LINE__, "PS ID: %d\n", PS_ID);
+				strcpy(PS_ID, value);
+				logMessage(__FILE__, __LINE__, "PS ID: %s\n", PS_ID);
 			}
 			else if (strcmp(key, "HOSTNAME") == 0)
 			{
@@ -608,7 +614,7 @@ populate_json_array(json_t *jsonArray, char *timestamp)
 	json_t *jsonObject = json_object();
 
 	// Populate the JSON object
-	json_object_set(jsonObject, "ps_id", json_integer(PS_ID));
+	json_object_set(jsonObject, "ps_id", json_string(PS_ID));
 	json_object_set(jsonObject, "rx_0_count", json_integer(port_statistics[0].rx_count));
 	json_object_set(jsonObject, "tx_0_count", json_integer(port_statistics[0].tx_count));
 	json_object_set(jsonObject, "rx_0_size", json_integer(port_statistics[0].rx_size));
@@ -634,6 +640,39 @@ populate_json_array(json_t *jsonArray, char *timestamp)
 	json_array_append(jsonArray, jsonObject);
 }
 
+static void
+collect_stats()
+{
+	// Get the statistics
+	rte_eth_stats_get(1, &stats_1);
+	rte_eth_stats_get(0, &stats_0);
+
+	// Update the statistics
+	port_statistics[1].rx_count = stats_1.ipackets;
+	port_statistics[1].tx_count = stats_1.opackets;
+	port_statistics[1].rx_size = stats_1.ibytes;
+	port_statistics[1].tx_size = stats_1.obytes;
+	port_statistics[1].dropped = stats_1.imissed;
+	port_statistics[1].err_rx = stats_1.ierrors;
+	port_statistics[1].err_tx = stats_1.oerrors;
+	port_statistics[1].mbuf_err = stats_1.rx_nombuf;
+	port_statistics[0].rx_count = stats_0.ipackets;
+	port_statistics[0].tx_count = stats_0.opackets;
+	port_statistics[0].rx_size = stats_0.ibytes;
+	port_statistics[0].tx_size = stats_0.obytes;
+	port_statistics[0].dropped = stats_0.imissed;
+	port_statistics[0].err_rx = stats_0.ierrors;
+	port_statistics[0].err_tx = stats_0.oerrors;
+	port_statistics[0].mbuf_err = stats_0.rx_nombuf;
+
+	// Clear the statistics
+	rte_eth_stats_reset(0);
+	rte_eth_stats_reset(1);
+
+	// Calculate the throughput
+	port_statistics[1].throughput = port_statistics[1].rx_size / TIMER_PERIOD_STATS;
+	port_statistics[0].throughput = port_statistics[0].tx_size / TIMER_PERIOD_STATS;
+}
 /*
  * The print statistics file function
  * Print the statistics to the file
@@ -690,6 +729,8 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 			// Set the time to now
 			tm_info = localtime(&now); // TODO: not efficient because already called before
 		}
+
+		collect_stats();
 
 		// convert the time to string
 		strftime(time_str, sizeof(time_str), format, tm_info);
@@ -784,40 +825,6 @@ send_stats(json_t *jsonArray, int *last_run_send)
 		send_stats_to_server(jsonArray);
 		*last_run_send = current_min;
 	}
-}
-
-static void
-collect_stats()
-{
-	// Get the statistics
-	rte_eth_stats_get(1, &stats_1);
-	rte_eth_stats_get(0, &stats_0);
-
-	// Update the statistics
-	port_statistics[1].rx_count = stats_1.ipackets;
-	port_statistics[1].tx_count = stats_1.opackets;
-	port_statistics[1].rx_size = stats_1.ibytes;
-	port_statistics[1].tx_size = stats_1.obytes;
-	port_statistics[1].dropped = stats_1.imissed;
-	port_statistics[1].err_rx = stats_1.ierrors;
-	port_statistics[1].err_tx = stats_1.oerrors;
-	port_statistics[1].mbuf_err = stats_1.rx_nombuf;
-	port_statistics[0].rx_count = stats_0.ipackets;
-	port_statistics[0].tx_count = stats_0.opackets;
-	port_statistics[0].rx_size = stats_0.ibytes;
-	port_statistics[0].tx_size = stats_0.obytes;
-	port_statistics[0].dropped = stats_0.imissed;
-	port_statistics[0].err_rx = stats_0.ierrors;
-	port_statistics[0].err_tx = stats_0.oerrors;
-	port_statistics[0].mbuf_err = stats_0.rx_nombuf;
-
-	// Clear the statistics
-	rte_eth_stats_reset(0);
-	rte_eth_stats_reset(1);
-
-	// Calculate the throughput
-	port_statistics[1].throughput = port_statistics[1].rx_size / TIMER_PERIOD_STATS;
-	port_statistics[0].throughput = port_statistics[0].tx_size / TIMER_PERIOD_STATS;
 }
 
 static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
@@ -1104,6 +1111,25 @@ void init_database()
 	sqlite3_finalize(stmt); // Finalize the prepared statement
 }
 
+void delete_database()
+{
+	// Close the database if it's open
+	if (db)
+	{
+		sqlite3_close(db);
+		db = NULL;
+	}
+
+	// Delete the database file
+	if (remove(db_path) != 0)
+	{
+		logMessage(__FILE__, __LINE__, "Error deleting the database file.\n");
+		return;
+	}
+
+	logMessage(__FILE__, __LINE__, "Database file deleted successfully.\n");
+}
+
 static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 {
 	if (!db)
@@ -1242,7 +1268,8 @@ lcore_stats_process(void)
 	// Variable declaration
 	int last_run_stat = 0;							 // lastime statistics printed
 	int last_run_file = 0;							 // lastime statistics printed to file
-	int last_run_send = 0;							 // lastime statistics sent to server
+	int last_run_send = 0;			
+	int last_run_print = 0;					 // lastime statistics sent to server
 	uint64_t start_tx_size_0 = 0, end_tx_size_0 = 0; // For throughput calculation
 	uint64_t start_rx_size_1 = 0, end_rx_size_1 = 0; // For throughput calculation
 	double throughput_0 = 0.0, throughput_1 = 0.0;	 // For throughput calculation
@@ -1253,19 +1280,15 @@ lcore_stats_process(void)
 
 	while (!force_quit)
 	{
-		// Get the statistics
-		collect_stats();
+		print_stats_file(&last_run_stat, &last_run_file, &f_stat, jsonArray);
 
 		// Print the statistics
-		print_stats();
-
-		// Print Statistcs to file
-		print_stats_file(&last_run_stat, &last_run_file, &f_stat, jsonArray);
+		print_stats(&last_run_print);
 
 		// Send stats
 		send_stats(jsonArray, &last_run_send);
 
-		usleep(1000000 * TIMER_PERIOD_STATS);
+		usleep(10000);
 	}
 }
 
@@ -1394,8 +1417,10 @@ lcore_heartbeat_process()
 			tm_info = gmtime(&timestamp);
 			strftime(timestamp_str, 25, "%Y-%m-%dT%H:%M:%S.000Z", tm_info);
 
-			sprintf(post_fields, "[{\"ps_id\": %d, \"time\": \"%s\"}]", PS_ID, timestamp_str);
+			sprintf(post_fields, "[{\"ps_id\": \"%s\", \"time\": \"%s\"}]", PS_ID, timestamp_str);
 
+			logMessage(__FILE__, __LINE__, "Time : %s\n", timestamp_str);
+			logMessage(__FILE__, __LINE__, "Post Fields : %s\n", post_fields);
 			curl_easy_setopt(curl, CURLOPT_URL, url);
 			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_fields);
 			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -1501,7 +1526,8 @@ int main(int argc, char *argv[])
 	RTE_LCORE_FOREACH_WORKER(lcore_id)
 	{
 		if (lcore_id == (unsigned int)lcore_main ||
-			lcore_id == (unsigned int)lcore_stats)
+			lcore_id == (unsigned int)lcore_stats ||
+			lcore_id == (unsigned int)lcore_db)
 		{
 			continue;
 		}
@@ -1550,5 +1576,6 @@ int main(int argc, char *argv[])
 			return -1;
 	}
 	// clean up the EAL
+	delete_database();
 	rte_eal_cleanup();
 }
