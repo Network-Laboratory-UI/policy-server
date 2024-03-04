@@ -31,9 +31,11 @@
 #include <rte_tcp.h>
 #include <rte_pdump.h>
 
-// ======================================================= THE DEFINE =======================================================
+#define CACHE_SIZE 1000
+#define RTE_TCP_RST 0x04
+#define KAFKA_TOPIC "dpdk-blocked-list"
+#define KAFKA_BROKER "192.168.0.90:9092"
 
-// Define the limit of
 uint32_t MAX_PACKET_LEN;
 uint32_t RX_RING_SIZE;
 uint32_t TX_RING_SIZE;
@@ -41,49 +43,28 @@ uint32_t NUM_MBUFS;
 uint32_t MBUF_CACHE_SIZE;
 uint32_t BURST_SIZE;
 uint32_t MAX_TCP_PAYLOAD_LEN;
+static uint32_t TIMER_PERIOD_STATS; 
+static uint32_t TIMER_PERIOD_SEND;	
+static const char *db_path = "/home/ubuntu/policy.db";
 char PS_ID[200];
-
-#define CACHE_SIZE 1000
-#define RTE_TCP_RST 0x04
-
-#define KAFKA_TOPIC "dpdk-blocked-list"
-#define KAFKA_BROKER "192.168.0.90:9092"
-// Define the statistics file name
-// #define STAT_FILE "stats/stats"
-// #define STAT_FILE_EXT ".csv"
 char STAT_FILE[100];
 char STAT_FILE_EXT[100];
 char HOSTNAME[100];
-
-static const char *db_path = "/home/ubuntu/policy.db";
 static sqlite3 *db;
-
-// Force quit variable
 static volatile bool force_quit;
+static struct IP_Cache ip_cache[CACHE_SIZE];
+static struct DomainCacheEntry domain_cache[CACHE_SIZE];
+
 struct IP_Cache
 {
 	char ip[INET_ADDRSTRLEN];
 	bool exists;
 };
-static struct IP_Cache ip_cache[CACHE_SIZE];
-
-// Structure to hold domain cache entries
 struct DomainCacheEntry
 {
 	char domain[256];
 	bool exists;
 };
-
-// Cache for domain results
-static struct DomainCacheEntry domain_cache[CACHE_SIZE];
-
-// Timer period for statistics
-static uint32_t TIMER_PERIOD_STATS; // 1 second
-static uint32_t TIMER_PERIOD_SEND;	// 10 minutes
-
-// TDOO: Create struct for packet broker identifier
-
-// Port statistic struct
 struct port_statistics_data
 {
 	uint64_t tx_count;
@@ -217,12 +198,14 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 
 	if (strcmp(type_str, "create") == 0)
 		query_len = snprintf(sql_query, sizeof(sql_query), "INSERT INTO policies (id, domain, ip_address) VALUES ('%s', '%s', '%s');", id_str, domain_str, ip_str);
-	else if (strcmp(type_str, "update") == 0){
+	else if (strcmp(type_str, "update") == 0)
+	{
 		query_len = snprintf(sql_query, sizeof(sql_query), "UPDATE policies SET domain='%s', ip_address='%s' WHERE id='%s';", domain_str, ip_str, id_str);
 		memset(ip_cache, 0, sizeof(ip_cache));
 		memset(domain_cache, 0, sizeof(domain_cache));
 	}
-	else if (strcmp(type_str, "delete") == 0){
+	else if (strcmp(type_str, "delete") == 0)
+	{
 		query_len = snprintf(sql_query, sizeof(sql_query), "DELETE FROM policies WHERE id='%s';", id_str);
 		memset(ip_cache, 0, sizeof(ip_cache));
 		memset(domain_cache, 0, sizeof(domain_cache));
@@ -441,44 +424,43 @@ print_stats(int *last_run_print)
 
 	if (timeinfo->tm_sec % TIMER_PERIOD_STATS == 0 && timeinfo->tm_sec != *last_run_print)
 	{
-	// Clear screen and move to top left
-	printf("%s%s", clr, topLeft);
-	printf("POLICY SERVER\n");
-	printf("\nRefreshed every %d seconds. "
-		   "Send every %d minutes.\n",
-		   TIMER_PERIOD_STATS, TIMER_PERIOD_SEND);
-	printf("\nPort statistics ====================================");
+		// Clear screen and move to top left
+		printf("%s%s", clr, topLeft);
+		printf("POLICY SERVER\n");
+		printf("\nRefreshed every %d seconds. "
+			   "Send every %d minutes.\n",
+			   TIMER_PERIOD_STATS, TIMER_PERIOD_SEND);
+		printf("\nPort statistics ====================================");
 
-	for (portid = 0; portid < 2; portid++)
-	{
-		printf("\nStatistics for port %u ------------------------------"
-			   "\nPackets sent count: %18" PRIu64
-			   "\nPackets sent size: %19" PRIu64
-			   "\nPackets received count: %14" PRIu64
-			   "\nPackets received size: %15" PRIu64
-			   "\nPackets dropped: %21" PRIu64
-			   "\nTCP RST to Client: %19" PRIu64
-			   "\nTCP RST to Server: %19" PRIu64
-			   "\nThroughput: %26" PRId64
-			   "\nPacket errors rx: %20" PRIu64
-			   "\nPacket errors tx: %20" PRIu64,
-			   portid,
-			   port_statistics[portid].tx_count,
-			   port_statistics[portid].tx_size,
-			   port_statistics[portid].rx_count,
-			   port_statistics[portid].rx_size,
-			   port_statistics[portid].dropped,
-			   port_statistics[portid].rstClient,
-			   port_statistics[portid].rstServer,
-			   port_statistics[portid].throughput,
-			   port_statistics[portid].err_rx,
-			   port_statistics[portid].err_tx);
-	}
-	printf("\n=====================================================");
-	
+		for (portid = 0; portid < 2; portid++)
+		{
+			printf("\nStatistics for port %u ------------------------------"
+				   "\nPackets sent count: %18" PRIu64
+				   "\nPackets sent size: %19" PRIu64
+				   "\nPackets received count: %14" PRIu64
+				   "\nPackets received size: %15" PRIu64
+				   "\nPackets dropped: %21" PRIu64
+				   "\nTCP RST to Client: %19" PRIu64
+				   "\nTCP RST to Server: %19" PRIu64
+				   "\nThroughput: %26" PRId64
+				   "\nPacket errors rx: %20" PRIu64
+				   "\nPacket errors tx: %20" PRIu64,
+				   portid,
+				   port_statistics[portid].tx_count,
+				   port_statistics[portid].tx_size,
+				   port_statistics[portid].rx_count,
+				   port_statistics[portid].rx_size,
+				   port_statistics[portid].dropped,
+				   port_statistics[portid].rstClient,
+				   port_statistics[portid].rstServer,
+				   port_statistics[portid].throughput,
+				   port_statistics[portid].err_rx,
+				   port_statistics[portid].err_tx);
+		}
+		printf("\n=====================================================");
 
-	fflush(stdout);
-	*last_run_print = timeinfo->tm_sec;
+		fflush(stdout);
+		*last_run_print = timeinfo->tm_sec;
 	}
 }
 
@@ -1266,10 +1248,10 @@ static inline void
 lcore_stats_process(void)
 {
 	// Variable declaration
-	int last_run_stat = 0;							 // lastime statistics printed
-	int last_run_file = 0;							 // lastime statistics printed to file
-	int last_run_send = 0;			
-	int last_run_print = 0;					 // lastime statistics sent to server
+	int last_run_stat = 0; // lastime statistics printed
+	int last_run_file = 0; // lastime statistics printed to file
+	int last_run_send = 0;
+	int last_run_print = 0;							 // lastime statistics sent to server
 	uint64_t start_tx_size_0 = 0, end_tx_size_0 = 0; // For throughput calculation
 	uint64_t start_rx_size_1 = 0, end_rx_size_1 = 0; // For throughput calculation
 	double throughput_0 = 0.0, throughput_1 = 0.0;	 // For throughput calculation
