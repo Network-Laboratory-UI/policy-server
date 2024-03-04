@@ -46,8 +46,8 @@ uint32_t NUM_MBUFS;
 uint32_t MBUF_CACHE_SIZE;
 uint32_t BURST_SIZE;
 uint32_t MAX_TCP_PAYLOAD_LEN;
-static uint32_t TIMER_PERIOD_STATS; 
-static uint32_t TIMER_PERIOD_SEND;	
+static uint32_t TIMER_PERIOD_STATS;
+static uint32_t TIMER_PERIOD_SEND;
 static const char *db_path = "/home/ubuntu/policy.db";
 char PS_ID[200];
 char STAT_FILE[100];
@@ -62,16 +62,7 @@ struct hit_counter
 	char id[MAX_STRINGS];
 	uint64_t hit_count;
 };
-struct IP_Cache
-{
-	char ip[INET_ADDRSTRLEN];
-	bool exists;
-};
-struct DomainCacheEntry
-{
-	char domain[256];
-	bool exists;
-};
+
 struct port_statistics_data
 {
 	uint64_t tx_count;
@@ -90,9 +81,25 @@ struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
 struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
 static volatile bool force_quit;
-static struct IP_Cache ip_cache[CACHE_SIZE];
 static struct hit_counter db_hit_count[MAX_LENGTH];
-static struct DomainCacheEntry domain_cache[CACHE_SIZE];
+
+typedef struct
+{
+	char domain[MAX_STRINGS];
+	char id[MAX_STRINGS];
+} DomainCache;
+
+static DomainCache domain_cache[CACHE_SIZE];
+static int domainCacheSize = 0;
+
+typedef struct
+{
+	char ip_address[INET_ADDRSTRLEN];
+	char id[MAX_STRINGS];
+} IPCache;
+
+static IPCache ip_cache[CACHE_SIZE];
+static int ipCacheSize = 0;
 
 void logMessage(const char *filename, int line, const char *format, ...)
 {
@@ -414,7 +421,10 @@ static FILE *open_file(const char *filename)
 	}
 	return f;
 }
-
+static void clear_stats(void)
+{
+	memset(port_statistics, 0, RTE_MAX_ETHPORTS * sizeof(struct port_statistics_data));
+}
 /*
  * The print statistics function
  * Print the statistics to the console
@@ -469,16 +479,12 @@ print_stats(int *last_run_print)
 				   port_statistics[portid].err_tx);
 		}
 		printf("\n=====================================================");
-
+		
 		fflush(stdout);
+		clear_stats();
 		*last_run_print = timeinfo->tm_sec;
 	}
 }
-
-
-
-
-
 
 static void print_stats_csv_header(FILE *f)
 {
@@ -491,10 +497,7 @@ static void print_stats_csv(FILE *f, char *timestamp)
 	fprintf(f, "%s,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", PS_ID, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[0].tx_count, port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, port_statistics[0].mbuf_err, port_statistics[1].rx_count, port_statistics[1].tx_count, port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, port_statistics[1].mbuf_err, timestamp, port_statistics[1].throughput);
 }
 
-static void clear_stats(void)
-{
-	memset(port_statistics, 0, RTE_MAX_ETHPORTS * sizeof(struct port_statistics_data));
-}
+
 
 /*
  * The load configuration file function
@@ -610,21 +613,23 @@ size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 	logMessage(__FILE__, __LINE__, "Response: %.*s \n", (int)real_size, (char *)contents);
 	return real_size;
 }
-static void populate_json_hitcount(json_t *jsonArray) {
-    for (int i = 0; i < MAX_LENGTH; i++) {
-        // Only create and append objects if hit_count > 0
-        if (db_hit_count[i].hit_count > 0) {
-            // Create object for each entry with non-zero hit_count
-            json_t *jsonObject = json_object();
-            json_object_set(jsonObject, "id", json_string(db_hit_count[i].id));
-            json_object_set(jsonObject, "hit_count", json_integer(db_hit_count[i].hit_count));
+static void populate_json_hitcount(json_t *jsonArray)
+{
+	for (int i = 0; i < MAX_LENGTH; i++)
+	{
+		// Only create and append objects if hit_count > 0
+		if (db_hit_count[i].hit_count > 0)
+		{
+			// Create object for each entry with non-zero hit_count
+			json_t *jsonObject = json_object();
+			json_object_set(jsonObject, "id", json_string(db_hit_count[i].id));
+			json_object_set(jsonObject, "hit_count", json_integer(db_hit_count[i].hit_count));
 
-            // Append the JSON object to the JSON array
-            json_array_append(jsonArray, jsonObject);
-        }
-    }
+			// Append the JSON object to the JSON array
+			json_array_append(jsonArray, jsonObject);
+		}
+	}
 }
-
 
 static void
 populate_json_stats(json_t *jsonArray, char *timestamp)
@@ -760,7 +765,7 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 		fflush(*f_stat);
 
 		// clear the stats
-		clear_stats();
+		
 
 		if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_file)
 		{
@@ -785,42 +790,47 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 	}
 }
 
-static void send_hitcount_to_server(json_t *jsonArray) {
-    CURL *curl;
-    CURLcode res;
-    struct curl_slist *headers = NULL; // Initialize headers to NULL
-    char *jsonString = json_dumps(jsonArray, 0);
-    char url[256];
+static void send_hitcount_to_server(json_t *jsonArray)
+{
+	CURL *curl;
+	CURLcode res;
+	struct curl_slist *headers = NULL; // Initialize headers to NULL
+	char *jsonString = json_dumps(jsonArray, 0);
+	char url[256];
 
-    sprintf(url, "%s/ps/blocked-list-count", HOSTNAME);
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init();
+	sprintf(url, "%s/ps/blocked-list-count", HOSTNAME);
+	curl_global_init(CURL_GLOBAL_DEFAULT);
+	curl = curl_easy_init();
 
-    if (curl) {
-        headers = curl_slist_append(headers, "Content-Type: application/json");
+	if (curl)
+	{
+		headers = curl_slist_append(headers, "Content-Type: application/json");
 
-        curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString);
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+		curl_easy_setopt(curl, CURLOPT_URL, url);
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString);
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 
-        res = curl_easy_perform(curl);
+		res = curl_easy_perform(curl);
 
-        if (res != CURLE_OK) {
-            logMessage(__FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-            logMessage(__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
-        } else {
-            logMessage(__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
-        }
+		if (res != CURLE_OK)
+		{
+			logMessage(__FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+			logMessage(__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
+		}
+		else
+		{
+			logMessage(__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
+		}
 
-        curl_slist_free_all(headers);
-        curl_easy_cleanup(curl);
-        free(jsonString);
-        json_array_clear(jsonArray);
-    }
+		curl_slist_free_all(headers);
+		curl_easy_cleanup(curl);
+		free(jsonString);
+		json_array_clear(jsonArray);
+	}
 
-    curl_global_cleanup();
+	curl_global_cleanup();
 }
 
 static void
@@ -1105,40 +1115,45 @@ static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 	}
 }
 
-void countStrings(char strings[MAX_LENGTH][MAX_STRINGS], int numStrings) {
-    // Assuming db_hit_count is declared globally or elsewhere in the code
-    // You need to know its size to memset it properly
-    // I'll assume MAX_HIT_COUNTS for illustration
-    memset(db_hit_count, 0, sizeof(db_hit_count));
+void countStrings(char strings[MAX_LENGTH][MAX_STRINGS], int numStrings)
+{
+	// Assuming db_hit_count is declared globally or elsewhere in the code
+	// You need to know its size to memset it properly
+	// I'll assume MAX_HIT_COUNTS for illustration
+	memset(db_hit_count, 0, sizeof(db_hit_count));
 
-    for (int i = 0; i < numStrings; i++) {
-        // Use a flag to track if the string is found
-        int found = 0;
+	for (int i = 0; i < numStrings; i++)
+	{
+		// Use a flag to track if the string is found
+		int found = 0;
 
-        // Iterate over the existing db_hit_count entries
-        for (int j = 0; j < MAX_LENGTH; j++) {
-            // If the string is found, increment the hit_count
-            if (strcmp(strings[i], db_hit_count[j].id) == 0) {
-                db_hit_count[j].hit_count++;
-                found = 1;
-                break;
-            }
-            // If an empty slot is found, add the string as a new entry
-            else if (db_hit_count[j].hit_count == 0) {
-                strcpy(db_hit_count[j].id, strings[i]);
-                db_hit_count[j].hit_count = 1;
-                found = 1;
-                break;
-            }
-        }
+		// Iterate over the existing db_hit_count entries
+		for (int j = 0; j < MAX_LENGTH; j++)
+		{
+			// If the string is found, increment the hit_count
+			if (strcmp(strings[i], db_hit_count[j].id) == 0)
+			{
+				db_hit_count[j].hit_count++;
+				found = 1;
+				break;
+			}
+			// If an empty slot is found, add the string as a new entry
+			else if (db_hit_count[j].hit_count == 0)
+			{
+				strcpy(db_hit_count[j].id, strings[i]);
+				db_hit_count[j].hit_count = 1;
+				found = 1;
+				break;
+			}
+		}
 
-        // If the string wasn't found and no empty slots are available, stop
-        if (!found) {
-            break;
-        }
-    }
+		// If the string wasn't found and no empty slots are available, stop
+		if (!found)
+		{
+			break;
+		}
+	}
 }
-
 
 static void sum_count(int *last_run_count, json_t *jsonArray)
 {
@@ -1148,14 +1163,14 @@ static void sum_count(int *last_run_count, json_t *jsonArray)
 	timeinfo = localtime(&rawtime);
 	if (timeinfo->tm_sec % 10 == 0 && timeinfo->tm_sec != *last_run_count)
 	{
-    countStrings(hitCount, hitCounter);
-	memset(hitCount, 0, sizeof(hitCount));
-	hitCounter = 0;
+		countStrings(hitCount, hitCounter);
+		memset(hitCount, 0, sizeof(hitCount));
+		hitCounter = 0;
 
-	populate_json_hitcount(jsonArray);
-   	memset(db_hit_count, 0, sizeof(db_hit_count));
+		populate_json_hitcount(jsonArray);
+		memset(db_hit_count, 0, sizeof(db_hit_count));
 
-	send_hitcount_to_server(jsonArray);
+		send_hitcount_to_server(jsonArray);
 
 		*last_run_count = timeinfo->tm_sec;
 	}
@@ -1257,18 +1272,20 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 	inet_ntop(AF_INET, &ip_hdr->dst_addr, dest_ip_str, INET_ADDRSTRLEN);
 
 	// Check the cache first
-	for (int i = 0; i < CACHE_SIZE; i++)
+	for (int i = 0; i < ipCacheSize; ++i)
 	{
-		if (ip_cache[i].exists && strcmp(dest_ip_str, ip_cache[i].ip) == 0)
+		if (strcmp(ip_cache[i].ip_address, dest_ip_str) == 0)
 		{
-			return true; // IP found in cache
+			// Found in cache, update hit count and return true
+			strncpy(hitCount[hitCounter], ip_cache[i].id, sizeof(ip_cache[i].id));
+			hitCounter++;
+			return true;
 		}
 	}
 
-	// Prepare an SQL query to check if the destination IP exists in the database
+	// Prepare an SQL query to check if the IP address exists in the database
 	char query[256];
-	// printf("Dest IP: %s\n", dest_ip_str);
-	snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE ip_address = '%s'", dest_ip_str);
+	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE ip_address = '%s'", dest_ip_str);
 
 	// Execute the SQL query
 	sqlite3_stmt *stmt;
@@ -1276,37 +1293,36 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 
 	if (result != SQLITE_OK)
 	{
-		// Handle query preparation error
-		logMessage(__FILE__, __LINE__, "Error preparing SQL query: %s\n", sqlite3_errmsg(db));
-		return false;
+		return false; // Error in preparing statement
 	}
 
-	// Execute the query and check if the destination IP exists in the database
-	int count = 0;
+	// Execute the query and check if the IP address exists in the database
+	char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
 	if (sqlite3_step(stmt) == SQLITE_ROW)
 	{
-		count = sqlite3_column_int(stmt, 0);
+		// Retrieve the ID from the result
+		strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
 	}
 
 	// Finalize the statement
 	sqlite3_finalize(stmt);
 
-	// Cache the result
-	for (int i = 0; i < CACHE_SIZE; i++)
+	if (strlen(id) > 0)
 	{
-		if (!ip_cache[i].exists)
+		// Add to cache
+		if (ipCacheSize < CACHE_SIZE)
 		{
-			strncpy(ip_cache[i].ip, dest_ip_str, INET_ADDRSTRLEN);
-			ip_cache[i].exists = (count > 0);
-			break;
+			strncpy(ip_cache[ipCacheSize].ip_address, dest_ip_str, sizeof(ip_cache[ipCacheSize].ip_address));
+			strncpy(ip_cache[ipCacheSize].id, id, sizeof(ip_cache[ipCacheSize].id));
+			ipCacheSize++;
 		}
-	}
 
-	if (count > 0)
-	{
-		logMessage(__FILE__, __LINE__, "IP: %s has been blocked\n", dest_ip_str);
+		// Update hit count
+		strncpy(hitCount[hitCounter], id, sizeof(id));
+		hitCounter++;
 		return true;
 	}
+
 	return false;
 }
 
@@ -1317,47 +1333,59 @@ static inline bool domain_checker(char *domain)
 		return false;
 	}
 
+	// Check the cache first
+	for (int i = 0; i < domainCacheSize; ++i)
+	{
+		if (strcmp(domain_cache[i].domain, domain) == 0)
+		{
+			// Found in cache, update hit count and return true
+			strncpy(hitCount[hitCounter], domain_cache[i].id, sizeof(domain_cache[i].id));
+			hitCounter++;
+			return true;
+		}
+	}
+
 	if (!db)
 	{
 		// Database is not initialized
 		return false;
 	}
 
-	// Check the cache first
-	for (int i = 0; i < CACHE_SIZE; i++)
+	// Prepare an SQL query to check if the domain exists in the database
+	char query[256];
+	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s'", domain);
+
+	// Execute the SQL query
+	sqlite3_stmt *stmt;
+	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+
+	if (result != SQLITE_OK)
 	{
-		if (domain_cache[i].exists && strcmp(domain, domain_cache[i].domain) == 0)
-		{
-			return true; // Domain found in cache
-		}
+		return false; // Error in preparing statement
 	}
 
-	 // Prepare an SQL query to check if the domain exists in the database
-    char query[256];
-    snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s'", domain);
-
-    // Execute the SQL query
-    sqlite3_stmt *stmt;
-    int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
-
-    if (result != SQLITE_OK)
-    {
-        return false; // Error in preparing statement
-    }
-
-    // Execute the query and check if the domain exists in the database
-    char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
-    if (sqlite3_step(stmt) == SQLITE_ROW)
-    {
-        // Retrieve the ID from the result
-        strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
-    }
-
-    // Finalize the statement
-    sqlite3_finalize(stmt);
-
-	if(strlen(id) > 0)
+	// Execute the query and check if the domain exists in the database
+	char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
+	if (sqlite3_step(stmt) == SQLITE_ROW)
 	{
+		// Retrieve the ID from the result
+		strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
+	}
+
+	// Finalize the statement
+	sqlite3_finalize(stmt);
+
+	if (strlen(id) > 0)
+	{
+		// Add to cache
+		if (domainCacheSize < CACHE_SIZE)
+		{
+			strncpy(domain_cache[domainCacheSize].domain, domain, sizeof(domain_cache[domainCacheSize].domain));
+			strncpy(domain_cache[domainCacheSize].id, id, sizeof(domain_cache[domainCacheSize].id));
+			domainCacheSize++;
+		}
+
+		// Update hit count
 		strncpy(hitCount[hitCounter], id, sizeof(id));
 		hitCounter++;
 		return true;
@@ -1373,21 +1401,21 @@ lcore_stats_process(void)
 	int last_run_stat = 0; // lastime statistics printed
 	int last_run_file = 0; // lastime statistics printed to file
 	int last_run_send = 0;
-	int last_run_print = 0;	
-	int last_run_hitcount = 0;							 // lastime statistics sent to server
+	int last_run_print = 0;
+	int last_run_hitcount = 0;						 // lastime statistics sent to server
 	uint64_t start_tx_size_0 = 0, end_tx_size_0 = 0; // For throughput calculation
 	uint64_t start_rx_size_1 = 0, end_rx_size_1 = 0; // For throughput calculation
 	double throughput_0 = 0.0, throughput_1 = 0.0;	 // For throughput calculation
 	FILE *f_stat = NULL;							 // File pointer for statistics
 	json_t *jsonStats = json_array();
-			json_t *jsonHitcount = json_array();		 // JSON array for statistics
+	json_t *jsonHitcount = json_array(); // JSON array for statistics
 
 	logMessage(__FILE__, __LINE__, "Starting stats process in %d\n", rte_lcore_id());
 
 	while (!force_quit)
 	{
 		sum_count(&last_run_hitcount, jsonHitcount);
-		
+
 		print_stats_file(&last_run_stat, &last_run_file, &f_stat, jsonStats);
 
 		// Print the statistics
@@ -1439,7 +1467,7 @@ lcore_main_process(void)
 			// extractedName = extractDomainfromHTTPS(rx_pkt);
 			// printf("Extracted Name333333: %s\n", extractedName);
 
-			if (domain_checker(extractDomainfromHTTP(rx_pkt)))
+			if (ip_checker(rx_pkt))
 			{
 
 				// Create a copy of the received packet
@@ -1485,13 +1513,11 @@ lcore_main_process(void)
 			}
 			uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
 			uint64_t processing_time = end_tsc - start_tsc;
-			logMessage(__FILE__, __LINE__,"Processing time: %" PRIu64 " cycles\n", processing_time);
+			logMessage(__FILE__, __LINE__, "Processing time: %" PRIu64 " cycles\n", processing_time);
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
 		}
 	}
 }
-
-
 
 static inline void
 lcore_heartbeat_process()
