@@ -1459,7 +1459,7 @@ lcore_main_process(void)
 		/* Get a burst of RX packets from the first port of the pair. */
 		struct rte_mbuf *rx_bufs[BURST_SIZE];
 		const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
-		uint64_t start_tsc = rte_rdtsc();
+	
 		for (uint16_t i = 0; i < rx_count; i++)
 		{
 			struct rte_mbuf *rx_pkt = rx_bufs[i];
@@ -1511,9 +1511,7 @@ lcore_main_process(void)
 					port_statistics[1].rstServer++;
 				}
 			}
-			uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
-			uint64_t processing_time = end_tsc - start_tsc;
-			logMessage(__FILE__, __LINE__, "Processing time: %" PRIu64 " cycles\n", processing_time);
+			
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
 		}
 	}
