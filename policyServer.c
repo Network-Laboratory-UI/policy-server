@@ -33,10 +33,13 @@
 
 #define CACHE_SIZE 1000
 #define RTE_TCP_RST 0x04
+#define MAX_STRINGS 64
+#define MAX_LENGTH 1000
 #define KAFKA_TOPIC "dpdk-blocked-list"
 #define KAFKA_BROKER "192.168.0.90:9092"
 
 uint32_t MAX_PACKET_LEN;
+
 uint32_t RX_RING_SIZE;
 uint32_t TX_RING_SIZE;
 uint32_t NUM_MBUFS;
@@ -50,9 +53,15 @@ char PS_ID[200];
 char STAT_FILE[100];
 char STAT_FILE_EXT[100];
 char HOSTNAME[100];
+char hitCount[MAX_LENGTH][MAX_STRINGS];
+uint64_t hitCounter = 0;
 static sqlite3 *db;
 
-
+struct hit_counter
+{
+	char id[MAX_STRINGS];
+	uint64_t hit_count;
+};
 struct IP_Cache
 {
 	char ip[INET_ADDRSTRLEN];
@@ -82,6 +91,7 @@ struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
 static volatile bool force_quit;
 static struct IP_Cache ip_cache[CACHE_SIZE];
+static struct hit_counter db_hit_count[MAX_LENGTH];
 static struct DomainCacheEntry domain_cache[CACHE_SIZE];
 
 void logMessage(const char *filename, int line, const char *format, ...)
@@ -465,6 +475,11 @@ print_stats(int *last_run_print)
 	}
 }
 
+
+
+
+
+
 static void print_stats_csv_header(FILE *f)
 {
 	fprintf(f, "ps_id,rstClient,rstServer,rx_0_count,tx_0_count,rx_0_size,tx_0_size,rx_0_drop,rx_0_error,tx_0_error,rx_0_mbuf,rx_1_count,tx_1_count,rx_1_size,tx_1_size,rx_1_drop,rx_1_error,tx_1_error,rx_1_mbuf,time,throughput\n"); // Header row
@@ -589,9 +604,33 @@ signal_handler(int signum)
 		force_quit = true;
 	}
 }
+size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+	size_t real_size = size * nmemb;
+	logMessage(__FILE__, __LINE__, "Heartbeat Response: %.*s \n", (int)real_size, (char *)contents);
+	return real_size;
+}
+static void
+populate_json_hitcount(json_t *jsonArray)
+{
+	// Create object for the statistics
+	json_t *jsonObject = json_object();
+
+	for (int i = 0; i < MAX_LENGTH; i++)
+	{
+		// Populate the JSON object
+		if(db_hit_count[i].hit_count > 0){
+		json_object_set(jsonObject, "id", json_string(db_hit_count[i].id));
+		json_object_set(jsonObject, "hit_count", json_integer(db_hit_count[i].hit_count));
+		}
+
+		// Append the JSON object to the JSON array
+	}
+	json_array_append(jsonArray, jsonObject);
+}
 
 static void
-populate_json_array(json_t *jsonArray, char *timestamp)
+populate_json_stats(json_t *jsonArray, char *timestamp)
 {
 	// Create object for the statistics
 	json_t *jsonObject = json_object();
@@ -720,7 +759,7 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 
 		// print out the stats to csv
 		print_stats_csv(*f_stat, time_str);
-		populate_json_array(jsonArray, time_str);
+		populate_json_stats(jsonArray, time_str);
 		fflush(*f_stat);
 
 		// clear the stats
@@ -747,6 +786,46 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 		// Set the last run time
 		*last_run_stat = current_sec;
 	}
+}
+static void
+send_hitcount_to_server(json_t *jsonArray)
+{
+	 CURL *curl;
+    CURLcode res;
+    struct curl_slist *headers = NULL; // Initialize headers to NULL
+    char *jsonString = json_dumps(jsonArray, 0);
+    char url[256];
+	
+	sprintf(url, "%s/ps/blocked-list-count", HOSTNAME);
+	logMessage(__FILE__, __LINE__, "INI URL NYA %s\n", HOSTNAME);
+	curl_global_init(CURL_GLOBAL_DEFAULT);
+	curl = curl_easy_init();
+	
+	if (curl)
+	{
+		headers = curl_slist_append(headers, "Content-Type: application/json");
+
+		curl_easy_setopt(curl, CURLOPT_URL, url);
+		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString);
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+
+		res = curl_easy_perform(curl);
+
+		if (res != CURLE_OK)
+		{
+			logMessage(__FILE__, __LINE__,  "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+			logMessage(__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
+		}
+		logMessage(__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
+		curl_slist_free_all(headers);
+		curl_easy_cleanup(curl);
+		free(jsonString);
+		json_array_clear(jsonArray);
+	}
+
+	curl_global_cleanup();
 }
 
 static void
@@ -1030,6 +1109,49 @@ static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 		tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
 	}
 }
+void countStrings(char strings[MAX_LENGTH][MAX_STRINGS], int numStrings) {
+    int count = 0;
+    
+    memset(db_hit_count, 0, sizeof(db_hit_count));
+
+    for (int i = 0; i < numStrings; i++) {
+        int found = 0;
+        for (int j = 0; j < count; j++) {
+            if (strcmp(strings[i], db_hit_count[j].id) == 0) {
+                db_hit_count[j].hit_count++;
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            strcpy(db_hit_count[count].id, strings[i]);
+            db_hit_count[count].hit_count = 1;
+            count++;
+        }
+    }
+}
+
+
+static void sum_count(int *last_run_count, json_t *jsonArray)
+{
+	time_t rawtime;
+	struct tm *timeinfo;
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+	if (timeinfo->tm_sec % 10 == 0 && timeinfo->tm_sec != *last_run_count)
+	{
+    countStrings(hitCount, hitCounter);
+	memset(hitCount, 0, sizeof(hitCount));
+	hitCounter = 0;
+
+	populate_json_hitcount(jsonArray);
+   	memset(db_hit_count, 0, sizeof(db_hit_count));
+
+	send_hitcount_to_server(jsonArray);
+
+		*last_run_count = timeinfo->tm_sec;
+	}
+}
 
 void init_database()
 {
@@ -1194,54 +1316,46 @@ static inline bool domain_checker(char *domain)
 	}
 
 	// Check the cache first
-	for (int i = 0; i < CACHE_SIZE; i++)
+	// for (int i = 0; i < CACHE_SIZE; i++)
+	// {
+	// 	if (domain_cache[i].exists && strcmp(domain, domain_cache[i].domain) == 0)
+	// 	{
+	// 		return true; // Domain found in cache
+	// 	}
+	// }
+
+	 // Prepare an SQL query to check if the domain exists in the database
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s'", domain);
+
+    // Execute the SQL query
+    sqlite3_stmt *stmt;
+    int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+
+    if (result != SQLITE_OK)
+    {
+        return false; // Error in preparing statement
+    }
+
+    // Execute the query and check if the domain exists in the database
+    char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        // Retrieve the ID from the result
+        strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
+    }
+
+    // Finalize the statement
+    sqlite3_finalize(stmt);
+
+	if(strlen(id) > 0)
 	{
-		if (domain_cache[i].exists && strcmp(domain, domain_cache[i].domain) == 0)
-		{
-			return true; // Domain found in cache
-		}
-	}
-
-	// Prepare an SQL query to check if the domain exists in the database
-	char query[256];
-	snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE domain = '%s'", domain);
-
-	// Execute the SQL query
-	sqlite3_stmt *stmt;
-	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
-
-	if (result != SQLITE_OK)
-	{
-		return false;
-	}
-
-	// Execute the query and check if the domain exists in the database
-	int count = 0;
-	if (sqlite3_step(stmt) == SQLITE_ROW)
-	{
-		count = sqlite3_column_int(stmt, 0);
-	}
-
-	// Finalize the statement
-	sqlite3_finalize(stmt);
-
-	// Cache the result
-	for (int i = 0; i < CACHE_SIZE; i++)
-	{
-		if (!domain_cache[i].exists)
-		{
-			strncpy(domain_cache[i].domain, domain, sizeof(domain_cache[i].domain) - 1);
-			domain_cache[i].domain[sizeof(domain_cache[i].domain) - 1] = '\0'; // Ensure null-terminated
-			domain_cache[i].exists = (count > 0);
-			break;
-		}
-	}
-
-	if (count > 0)
-	{
-		logMessage(__FILE__, __LINE__, "Domain: %s has been blocked\n", domain);
+		strncpy(hitCount[hitCounter], id, sizeof(id));
+		logMessage(__FILE__, __LINE__, "HOSTNAME TOLONG: %s \n", HOSTNAME);
+		hitCounter++;
 		return true;
 	}
+
 	return false;
 }
 
@@ -1252,24 +1366,28 @@ lcore_stats_process(void)
 	int last_run_stat = 0; // lastime statistics printed
 	int last_run_file = 0; // lastime statistics printed to file
 	int last_run_send = 0;
-	int last_run_print = 0;							 // lastime statistics sent to server
+	int last_run_print = 0;	
+	int last_run_hitcount = 0;							 // lastime statistics sent to server
 	uint64_t start_tx_size_0 = 0, end_tx_size_0 = 0; // For throughput calculation
 	uint64_t start_rx_size_1 = 0, end_rx_size_1 = 0; // For throughput calculation
 	double throughput_0 = 0.0, throughput_1 = 0.0;	 // For throughput calculation
 	FILE *f_stat = NULL;							 // File pointer for statistics
-	json_t *jsonArray = json_array();				 // JSON array for statistics
+	json_t *jsonStats = json_array();
+			json_t *jsonHitcount = json_array();		 // JSON array for statistics
 
 	logMessage(__FILE__, __LINE__, "Starting stats process in %d\n", rte_lcore_id());
 
 	while (!force_quit)
 	{
-		print_stats_file(&last_run_stat, &last_run_file, &f_stat, jsonArray);
+		sum_count(&last_run_hitcount, jsonHitcount);
+		
+		print_stats_file(&last_run_stat, &last_run_file, &f_stat, jsonStats);
 
 		// Print the statistics
 		print_stats(&last_run_print);
 
 		// Send stats
-		send_stats(jsonArray, &last_run_send);
+		send_stats(jsonStats, &last_run_send);
 
 		usleep(10000);
 	}
@@ -1366,12 +1484,7 @@ lcore_main_process(void)
 	}
 }
 
-size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
-{
-	size_t real_size = size * nmemb;
-	logMessage(__FILE__, __LINE__, "Heartbeat Response: %.*s \n", (int)real_size, (char *)contents);
-	return real_size;
-}
+
 
 static inline void
 lcore_heartbeat_process()
