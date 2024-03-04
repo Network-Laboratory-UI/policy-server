@@ -51,9 +51,7 @@ char STAT_FILE[100];
 char STAT_FILE_EXT[100];
 char HOSTNAME[100];
 static sqlite3 *db;
-static volatile bool force_quit;
-static struct IP_Cache ip_cache[CACHE_SIZE];
-static struct DomainCacheEntry domain_cache[CACHE_SIZE];
+
 
 struct IP_Cache
 {
@@ -82,6 +80,9 @@ struct port_statistics_data
 struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
 struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
+static volatile bool force_quit;
+static struct IP_Cache ip_cache[CACHE_SIZE];
+static struct DomainCacheEntry domain_cache[CACHE_SIZE];
 
 void logMessage(const char *filename, int line, const char *format, ...)
 {
