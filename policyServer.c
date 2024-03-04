@@ -607,27 +607,24 @@ signal_handler(int signum)
 size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t real_size = size * nmemb;
-	logMessage(__FILE__, __LINE__, "Heartbeat Response: %.*s \n", (int)real_size, (char *)contents);
+	logMessage(__FILE__, __LINE__, "Response: %.*s \n", (int)real_size, (char *)contents);
 	return real_size;
 }
-static void
-populate_json_hitcount(json_t *jsonArray)
-{
-	// Create object for the statistics
-	json_t *jsonObject = json_object();
+static void populate_json_hitcount(json_t *jsonArray) {
+    for (int i = 0; i < MAX_LENGTH; i++) {
+        // Only create and append objects if hit_count > 0
+        if (db_hit_count[i].hit_count > 0) {
+            // Create object for each entry with non-zero hit_count
+            json_t *jsonObject = json_object();
+            json_object_set(jsonObject, "id", json_string(db_hit_count[i].id));
+            json_object_set(jsonObject, "hit_count", json_integer(db_hit_count[i].hit_count));
 
-	for (int i = 0; i < MAX_LENGTH; i++)
-	{
-		// Populate the JSON object
-		if(db_hit_count[i].hit_count > 0){
-		json_object_set(jsonObject, "id", json_string(db_hit_count[i].id));
-		json_object_set(jsonObject, "hit_count", json_integer(db_hit_count[i].hit_count));
-		}
-
-		// Append the JSON object to the JSON array
-	}
-	json_array_append(jsonArray, jsonObject);
+            // Append the JSON object to the JSON array
+            json_array_append(jsonArray, jsonObject);
+        }
+    }
 }
+
 
 static void
 populate_json_stats(json_t *jsonArray, char *timestamp)
@@ -787,45 +784,43 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 		*last_run_stat = current_sec;
 	}
 }
-static void
-send_hitcount_to_server(json_t *jsonArray)
-{
-	 CURL *curl;
+
+static void send_hitcount_to_server(json_t *jsonArray) {
+    CURL *curl;
     CURLcode res;
     struct curl_slist *headers = NULL; // Initialize headers to NULL
     char *jsonString = json_dumps(jsonArray, 0);
     char url[256];
-	
-	sprintf(url, "%s/ps/blocked-list-count", HOSTNAME);
-	logMessage(__FILE__, __LINE__, "INI URL NYA %s\n", HOSTNAME);
-	curl_global_init(CURL_GLOBAL_DEFAULT);
-	curl = curl_easy_init();
-	
-	if (curl)
-	{
-		headers = curl_slist_append(headers, "Content-Type: application/json");
 
-		curl_easy_setopt(curl, CURLOPT_URL, url);
-		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString);
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    sprintf(url, "%s/ps/blocked-list-count", HOSTNAME);
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
 
-		res = curl_easy_perform(curl);
+    if (curl) {
+        headers = curl_slist_append(headers, "Content-Type: application/json");
 
-		if (res != CURLE_OK)
-		{
-			logMessage(__FILE__, __LINE__,  "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-			logMessage(__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
-		}
-		logMessage(__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
-		curl_slist_free_all(headers);
-		curl_easy_cleanup(curl);
-		free(jsonString);
-		json_array_clear(jsonArray);
-	}
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 
-	curl_global_cleanup();
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK) {
+            logMessage(__FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            logMessage(__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
+        } else {
+            logMessage(__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
+        }
+
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+        free(jsonString);
+        json_array_clear(jsonArray);
+    }
+
+    curl_global_cleanup();
 }
 
 static void
@@ -1109,24 +1104,37 @@ static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 		tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
 	}
 }
+
 void countStrings(char strings[MAX_LENGTH][MAX_STRINGS], int numStrings) {
-    int count = 0;
-    
+    // Assuming db_hit_count is declared globally or elsewhere in the code
+    // You need to know its size to memset it properly
+    // I'll assume MAX_HIT_COUNTS for illustration
     memset(db_hit_count, 0, sizeof(db_hit_count));
 
     for (int i = 0; i < numStrings; i++) {
+        // Use a flag to track if the string is found
         int found = 0;
-        for (int j = 0; j < count; j++) {
+
+        // Iterate over the existing db_hit_count entries
+        for (int j = 0; j < MAX_LENGTH; j++) {
+            // If the string is found, increment the hit_count
             if (strcmp(strings[i], db_hit_count[j].id) == 0) {
                 db_hit_count[j].hit_count++;
                 found = 1;
                 break;
             }
+            // If an empty slot is found, add the string as a new entry
+            else if (db_hit_count[j].hit_count == 0) {
+                strcpy(db_hit_count[j].id, strings[i]);
+                db_hit_count[j].hit_count = 1;
+                found = 1;
+                break;
+            }
         }
+
+        // If the string wasn't found and no empty slots are available, stop
         if (!found) {
-            strcpy(db_hit_count[count].id, strings[i]);
-            db_hit_count[count].hit_count = 1;
-            count++;
+            break;
         }
     }
 }
@@ -1316,13 +1324,13 @@ static inline bool domain_checker(char *domain)
 	}
 
 	// Check the cache first
-	// for (int i = 0; i < CACHE_SIZE; i++)
-	// {
-	// 	if (domain_cache[i].exists && strcmp(domain, domain_cache[i].domain) == 0)
-	// 	{
-	// 		return true; // Domain found in cache
-	// 	}
-	// }
+	for (int i = 0; i < CACHE_SIZE; i++)
+	{
+		if (domain_cache[i].exists && strcmp(domain, domain_cache[i].domain) == 0)
+		{
+			return true; // Domain found in cache
+		}
+	}
 
 	 // Prepare an SQL query to check if the domain exists in the database
     char query[256];
@@ -1351,7 +1359,6 @@ static inline bool domain_checker(char *domain)
 	if(strlen(id) > 0)
 	{
 		strncpy(hitCount[hitCounter], id, sizeof(id));
-		logMessage(__FILE__, __LINE__, "HOSTNAME TOLONG: %s \n", HOSTNAME);
 		hitCounter++;
 		return true;
 	}
@@ -1424,7 +1431,7 @@ lcore_main_process(void)
 		/* Get a burst of RX packets from the first port of the pair. */
 		struct rte_mbuf *rx_bufs[BURST_SIZE];
 		const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
-		// uint64_t start_tsc = rte_rdtsc();
+		uint64_t start_tsc = rte_rdtsc();
 		for (uint16_t i = 0; i < rx_count; i++)
 		{
 			struct rte_mbuf *rx_pkt = rx_bufs[i];
@@ -1476,9 +1483,9 @@ lcore_main_process(void)
 					port_statistics[1].rstServer++;
 				}
 			}
-			// uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
-			// uint64_t processing_time = end_tsc - start_tsc;
-			// printf("Processing time: %" PRIu64 " cycles\n", processing_time);
+			uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
+			uint64_t processing_time = end_tsc - start_tsc;
+			logMessage(__FILE__, __LINE__,"Processing time: %" PRIu64 " cycles\n", processing_time);
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
 		}
 	}
