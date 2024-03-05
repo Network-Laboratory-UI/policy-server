@@ -34,7 +34,7 @@
 #define CACHE_SIZE 1000
 #define RTE_TCP_RST 0x04
 #define MAX_STRINGS 64
-#define MAX_LENGTH 100000
+#define MAX_LENGTH 1000
 #define KAFKA_TOPIC "dpdk-blocked-list"
 #define KAFKA_BROKER "192.168.0.90:9092"
 
@@ -53,10 +53,12 @@ char PS_ID[200];
 char STAT_FILE[100];
 char STAT_FILE_EXT[100];
 char HOSTNAME[100];
-char hitCount[MAX_LENGTH][MAX_STRINGS];
+char hitCount[MAX_STRINGS * CACHE_SIZE][MAX_STRINGS];
 uint64_t hitCounter = 0;
 static sqlite3 *db;
-
+clock_t start, end;
+double service_time = 0, avg_service_time = 0;
+int count_service_time = 0;
 struct hit_counter
 {
 	char id[MAX_STRINGS];
@@ -758,7 +760,13 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 
 		// convert the time to string
 		strftime(time_str, sizeof(time_str), format, tm_info);
-
+if (count_service_time > 0)
+		{
+			avg_service_time = service_time / count_service_time;
+			service_time = 0;
+			count_service_time = 0;
+			logMessage(__FILE__, __LINE__, "AVG Service Time: %f\n", avg_service_time);
+		}
 		// print out the stats to csv
 		print_stats_csv(*f_stat, time_str);
 		populate_json_stats(jsonArray, time_str);
@@ -1159,20 +1167,22 @@ static void sum_count(int *last_run_count, json_t *jsonArray)
 {
 	time_t rawtime;
 	struct tm *timeinfo;
+	char timestamp[20];
 	time(&rawtime);
 	timeinfo = localtime(&rawtime);
-	if (timeinfo->tm_sec % 1 == 0 && timeinfo->tm_sec != *last_run_count)
+	countStrings(hitCount, hitCounter);
+	memset(hitCount, 0, sizeof(hitCount));
+	hitCounter = 0;
+	int current_min = timeinfo->tm_min;
+	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_count)
 	{
-		countStrings(hitCount, hitCounter);
-		memset(hitCount, 0, sizeof(hitCount));
-		hitCounter = 0;
 
 		populate_json_hitcount(jsonArray);
 		memset(db_hit_count, 0, sizeof(db_hit_count));
 
 		send_hitcount_to_server(jsonArray);
 
-		*last_run_count = timeinfo->tm_sec;
+		*last_run_count = current_min;
 	}
 }
 
@@ -1326,72 +1336,81 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 	return false;
 }
 
-static inline bool domain_checker(char *domain)
-{
-	if (domain == NULL)
-	{
-		return false;
-	}
 
-	// Check the cache first
-	for (int i = 0; i < domainCacheSize; ++i)
-	{
-		if (strcmp(domain_cache[i].domain, domain) == 0)
-		{
-			// Found in cache, update hit count and return true
-			strncpy(hitCount[hitCounter], domain_cache[i].id, sizeof(domain_cache[i].id));
-			hitCounter++;
-			return true;
-		}
-	}
 
-	if (!db)
-	{
-		// Database is not initialized
-		return false;
-	}
 
-	// Prepare an SQL query to check if the domain exists in the database
-	char query[256];
-	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s'", domain);
+// Hash function
+unsigned int hash_function(const char *str) {
+    unsigned int hash = 5381;
+    int c;
 
-	// Execute the SQL query
-	sqlite3_stmt *stmt;
-	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    }
 
-	if (result != SQLITE_OK)
-	{
-		return false; // Error in preparing statement
-	}
+    return hash % CACHE_SIZE;
+}
 
-	// Execute the query and check if the domain exists in the database
-	char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
-	if (sqlite3_step(stmt) == SQLITE_ROW)
-	{
-		// Retrieve the ID from the result
-		strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
-	}
 
-	// Finalize the statement
-	sqlite3_finalize(stmt);
+static inline bool domain_checker(char *domain) {
+    if (domain == NULL) {
+        return false;
+    }
 
-	if (strlen(id) > 0)
-	{
-		// Add to cache
-		if (domainCacheSize < CACHE_SIZE)
-		{
-			strncpy(domain_cache[domainCacheSize].domain, domain, sizeof(domain_cache[domainCacheSize].domain));
-			strncpy(domain_cache[domainCacheSize].id, id, sizeof(domain_cache[domainCacheSize].id));
-			domainCacheSize++;
-		}
+    // Use a hash table for faster lookup in the cache
+    unsigned int hash = hash_function(domain);
+    for (int i = 0; i < domainCacheSize; ++i) {
+        if (strcmp(domain_cache[hash].domain, domain) == 0) {
+            // Found in cache, update hit count and return true
+            strncpy(hitCount[hitCounter], domain_cache[hash].id, sizeof(domain_cache[hash].id));
+            hitCounter++;
+            return true;
+        }
+        hash = (hash + 1) % CACHE_SIZE; // Linear probing for collision resolution
+    }
 
-		// Update hit count
-		strncpy(hitCount[hitCounter], id, sizeof(id));
-		hitCounter++;
-		return true;
-	}
+    if (!db) {
+        // Database is not initialized
+        return false;
+    }
 
-	return false;
+    // Prepare an SQL query to check if the domain exists in the database
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s'", domain);
+
+    // Execute the SQL query
+    sqlite3_stmt *stmt;
+    int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+
+    if (result != SQLITE_OK) {
+        return false; // Error in preparing statement
+    }
+
+    // Execute the query and check if the domain exists in the database
+    char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        // Retrieve the ID from the result
+        strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
+    }
+
+    // Finalize the statement
+    sqlite3_finalize(stmt);
+
+    if (strlen(id) > 0) {
+        // Add to cache
+        if (domainCacheSize < CACHE_SIZE) {
+            strncpy(domain_cache[hash].domain, domain, sizeof(domain_cache[hash].domain));
+            strncpy(domain_cache[hash].id, id, sizeof(domain_cache[hash].id));
+            domainCacheSize++;
+        }
+
+        // Update hit count
+        strncpy(hitCount[hitCounter], id, sizeof(id));
+        hitCounter++;
+        return true;
+    }
+
+    return false;
 }
 
 static inline void
@@ -1423,8 +1442,6 @@ lcore_stats_process(void)
 
 		// Send stats
 		send_stats(jsonStats, &last_run_send);
-
-		usleep(10000);
 	}
 }
 
@@ -1462,6 +1479,7 @@ lcore_main_process(void)
 	
 		for (uint16_t i = 0; i < rx_count; i++)
 		{
+			start = clock();
 			struct rte_mbuf *rx_pkt = rx_bufs[i];
 			// extractDomainfromHTTP(rx_pkt);
 			// extractedName = extractDomainfromHTTPS(rx_pkt);
@@ -1513,7 +1531,10 @@ lcore_main_process(void)
 			}
 			
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
+			end = clock();
 		}
+		service_time += (double)(end - start) / CLOCKS_PER_SEC;
+		count_service_time += 1;
 	}
 }
 
