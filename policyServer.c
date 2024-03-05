@@ -34,7 +34,7 @@
 #define CACHE_SIZE 1000
 #define RTE_TCP_RST 0x04
 #define MAX_STRINGS 64
-#define MAX_LENGTH 1000
+#define MAX_LENGTH 100000
 #define KAFKA_TOPIC "dpdk-blocked-list"
 #define KAFKA_BROKER "192.168.0.90:9092"
 
@@ -1161,7 +1161,7 @@ static void sum_count(int *last_run_count, json_t *jsonArray)
 	struct tm *timeinfo;
 	time(&rawtime);
 	timeinfo = localtime(&rawtime);
-	if (timeinfo->tm_sec % 10 == 0 && timeinfo->tm_sec != *last_run_count)
+	if (timeinfo->tm_sec % 1 == 0 && timeinfo->tm_sec != *last_run_count)
 	{
 		countStrings(hitCount, hitCounter);
 		memset(hitCount, 0, sizeof(hitCount));

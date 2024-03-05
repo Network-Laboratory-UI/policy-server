@@ -1,47 +1,78 @@
-[2024-03-04 17:22:25] [policyServer.c:1229] - 'policies' table already exists.
-[2024-03-04 17:22:25] [policyServer.c:1588] - Starting the application
-[2024-03-04 17:22:25] [policyServer.c:526] - MAX_PACKET_LEN: 1500
-[2024-03-04 17:22:25] [policyServer.c:531] - RX_RING_SIZE: 1024
-[2024-03-04 17:22:25] [policyServer.c:536] - TX_RING_SIZE: 1024
-[2024-03-04 17:22:25] [policyServer.c:541] - NUM_MBUFS: 8191
-[2024-03-04 17:22:25] [policyServer.c:546] - MBUF_CACHE_SIZE: 250
-[2024-03-04 17:22:25] [policyServer.c:551] - BURST_SIZE: 32
-[2024-03-04 17:22:25] [policyServer.c:556] - MAX_TCP_PAYLOAD_LEN: 1024
-[2024-03-04 17:22:25] [policyServer.c:581] - PS ID: 381ad33f-ec29-4a7f-a38c-09447a9efe13
-[2024-03-04 17:22:25] [policyServer.c:586] - HOSTNAME: http://192.168.0.70:3000
-[2024-03-04 17:22:25] [policyServer.c:561] - STAT_FILE: stats/stats
-[2024-03-04 17:22:25] [policyServer.c:566] - STAT_FILE_EXT: .csv
-[2024-03-04 17:22:25] [policyServer.c:571] - TIMER_PERIOD_STATS: 1
-[2024-03-04 17:22:25] [policyServer.c:576] - TIMER_PERIOD_SEND: 1
-[2024-03-04 17:22:25] [policyServer.c:1596] - Load config done
-[2024-03-04 17:22:25] [policyServer.c:1616] - Clean the statistics data
-[2024-03-04 17:22:26] [policyServer.c:1636] - Create mbuf pool done
-[2024-03-04 17:22:26] [policyServer.c:402] - Port 0 MAC: ae 50 82 be 45 ac
-[2024-03-04 17:22:26] [policyServer.c:402] - Port 1 MAC: 0a 73 10 a5 ce 50
-[2024-03-04 17:22:26] [policyServer.c:1664] - Main on core 1
-[2024-03-04 17:22:26] [policyServer.c:1670] - Stats on core 2
-[2024-03-04 17:22:26] [policyServer.c:1676] - DB on core 3
-[2024-03-04 17:22:26] [policyServer.c:1682] - Run the lcore main function
-[2024-03-04 17:22:26] [policyServer.c:1687] - Run the stats
-[2024-03-04 17:22:26] [policyServer.c:1452] - 
+[2024-03-04 17:33:47] [policyServer.c:1229] - 'policies' table already exists.
+[2024-03-04 17:33:47] [policyServer.c:1588] - Starting the application
+[2024-03-04 17:33:47] [policyServer.c:526] - MAX_PACKET_LEN: 1500
+[2024-03-04 17:33:47] [policyServer.c:531] - RX_RING_SIZE: 1024
+[2024-03-04 17:33:47] [policyServer.c:536] - TX_RING_SIZE: 1024
+[2024-03-04 17:33:47] [policyServer.c:541] - NUM_MBUFS: 8191
+[2024-03-04 17:33:47] [policyServer.c:546] - MBUF_CACHE_SIZE: 250
+[2024-03-04 17:33:47] [policyServer.c:551] - BURST_SIZE: 32
+[2024-03-04 17:33:47] [policyServer.c:556] - MAX_TCP_PAYLOAD_LEN: 1024
+[2024-03-04 17:33:47] [policyServer.c:581] - PS ID: 381ad33f-ec29-4a7f-a38c-09447a9efe13
+[2024-03-04 17:33:47] [policyServer.c:586] - HOSTNAME: http://192.168.0.70:3000
+[2024-03-04 17:33:47] [policyServer.c:561] - STAT_FILE: stats/stats
+[2024-03-04 17:33:47] [policyServer.c:566] - STAT_FILE_EXT: .csv
+[2024-03-04 17:33:47] [policyServer.c:571] - TIMER_PERIOD_STATS: 1
+[2024-03-04 17:33:47] [policyServer.c:576] - TIMER_PERIOD_SEND: 1
+[2024-03-04 17:33:47] [policyServer.c:1596] - Load config done
+[2024-03-04 17:33:47] [policyServer.c:1616] - Clean the statistics data
+[2024-03-04 17:33:47] [policyServer.c:1636] - Create mbuf pool done
+[2024-03-04 17:33:47] [policyServer.c:402] - Port 0 MAC: ae 50 82 be 45 ac
+[2024-03-04 17:33:47] [policyServer.c:402] - Port 1 MAC: 0a 73 10 a5 ce 50
+[2024-03-04 17:33:47] [policyServer.c:1664] - Main on core 1
+[2024-03-04 17:33:47] [policyServer.c:1670] - Stats on core 2
+[2024-03-04 17:33:47] [policyServer.c:1676] - DB on core 3
+[2024-03-04 17:33:47] [policyServer.c:1682] - Run the lcore main function
+[2024-03-04 17:33:47] [policyServer.c:1687] - Run the stats
+[2024-03-04 17:33:47] [policyServer.c:1452] - 
 Core 1 forwarding packets. [Ctrl+C to quit]
-[2024-03-04 17:22:26] [policyServer.c:1691] - Run the Kafka Broker
-[2024-03-04 17:22:26] [policyServer.c:1413] - Starting stats process in 2
-[2024-03-04 17:22:26] [policyServer.c:415] - Opening file stats/stats2024-03-04T17:22:00.csv
-[2024-03-04 17:22:26] [policyServer.c:1696] - Run the heartbeat
-[2024-03-04 17:22:26] [policyServer.c:891] - Sending statistics to server
-[2024-03-04 17:22:26] [policyServer.c:1549] - Time : 2024-03-04T17:22:26.000Z
-[2024-03-04 17:22:26] [policyServer.c:1550] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-04T17:22:26.000Z"}]
-[2024-03-04 17:22:26] [policyServer.c:613] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":1545,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-04T17:22:26.000Z"}]} 
-[2024-03-04 17:22:26] [policyServer.c:143] - Received message: {"createdBlockedList":{"createdAt":"2024-03-04T09:08:11.069Z","updatedAt":"2024-03-04T09:08:11.069Z","id":"95feaa1a-ca37-4789-bbb5-4b79f83ad6fd","hit_count":0,"name":"Universitas Indonesia","domain":"ui.ac.id","ip_add":"192.192.192.192"},"type":"create"}
-[2024-03-04 17:22:26] [policyServer.c:246] - SQL error: UNIQUE constraint failed: policies.id
-[2024-03-04 17:22:26] [policyServer.c:143] - Received message: {"createdBlockedList":{"createdAt":"2024-03-04T10:37:55.273Z","updatedAt":"2024-03-04T10:37:55.273Z","id":"cfd83865-a3c6-40f6-adab-a3223f197b18","hit_count":0,"name":"Facebook","domain":"facebook.co.id","ip_add":"191919199191"},"type":"create"}
-[2024-03-04 17:22:26] [policyServer.c:246] - SQL error: UNIQUE constraint failed: policies.id
-[2024-03-04 17:22:26] [policyServer.c:143] - Received message: {"createdBlockedList":{"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":"2024-03-04T15:06:14.310Z","id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","hit_count":0,"name":"trex","domain":"trex.com","ip_add":"22.0.0.11"},"type":"create"}
-[2024-03-04 17:22:26] [policyServer.c:246] - SQL error: UNIQUE constraint failed: policies.id
-[2024-03-04 17:22:26] [policyServer.c:143] - Received message: {"updatedBlockedList":{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","name":"trex","domain":"trex.com","ip_add":"48.0.0.1","hit_count":0,"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
-[2024-03-04 17:22:26] [policyServer.c:251] - trex.com updated to the database
-[2024-03-04 17:22:26] [policyServer.c:143] - Received message: {"updatedBlockedList":{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","name":"trex","domain":"trex.com","ip_add":"40.0.0.1","hit_count":1939,"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
-[2024-03-04 17:22:26] [policyServer.c:251] - trex.com updated to the database
-[2024-03-04 17:22:26] [policyServer.c:143] - Received message: {"updatedBlockedList":{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","name":"trex","domain":"trex.com","ip_add":"48.0.0.1","hit_count":1939,"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
-[2024-03-04 17:22:26] [policyServer.c:251] - trex.com updated to the database
+[2024-03-04 17:33:47] [policyServer.c:1691] - Run the Kafka Broker
+[2024-03-04 17:33:47] [policyServer.c:1413] - Starting stats process in 2
+[2024-03-04 17:33:47] [policyServer.c:1696] - Run the heartbeat
+[2024-03-04 17:33:47] [policyServer.c:415] - Opening file stats/stats2024-03-04T17:33:00.csv
+[2024-03-04 17:33:47] [policyServer.c:891] - Sending statistics to server
+[2024-03-04 17:33:47] [policyServer.c:1549] - Time : 2024-03-04T17:33:47.000Z
+[2024-03-04 17:33:47] [policyServer.c:1550] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-04T17:33:47.000Z"}]
+[2024-03-04 17:33:47] [policyServer.c:613] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":1587,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-04T17:33:47.000Z"}]} 
+[2024-03-04 17:33:47] [policyServer.c:143] - Received message: {"createdBlockedList":{"createdAt":"2024-03-04T09:08:11.069Z","updatedAt":"2024-03-04T09:08:11.069Z","id":"95feaa1a-ca37-4789-bbb5-4b79f83ad6fd","hit_count":0,"name":"Universitas Indonesia","domain":"ui.ac.id","ip_add":"192.192.192.192"},"type":"create"}
+[2024-03-04 17:33:47] [policyServer.c:246] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-04 17:33:47] [policyServer.c:143] - Received message: {"createdBlockedList":{"createdAt":"2024-03-04T10:37:55.273Z","updatedAt":"2024-03-04T10:37:55.273Z","id":"cfd83865-a3c6-40f6-adab-a3223f197b18","hit_count":0,"name":"Facebook","domain":"facebook.co.id","ip_add":"191919199191"},"type":"create"}
+[2024-03-04 17:33:47] [policyServer.c:246] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-04 17:33:47] [policyServer.c:143] - Received message: {"createdBlockedList":{"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":"2024-03-04T15:06:14.310Z","id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","hit_count":0,"name":"trex","domain":"trex.com","ip_add":"22.0.0.11"},"type":"create"}
+[2024-03-04 17:33:47] [policyServer.c:246] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-04 17:33:47] [policyServer.c:143] - Received message: {"updatedBlockedList":{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","name":"trex","domain":"trex.com","ip_add":"48.0.0.1","hit_count":0,"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
+[2024-03-04 17:33:47] [policyServer.c:251] - trex.com updated to the database
+[2024-03-04 17:33:47] [policyServer.c:143] - Received message: {"updatedBlockedList":{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","name":"trex","domain":"trex.com","ip_add":"40.0.0.1","hit_count":1939,"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
+[2024-03-04 17:33:47] [policyServer.c:251] - trex.com updated to the database
+[2024-03-04 17:33:47] [policyServer.c:143] - Received message: {"updatedBlockedList":{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","name":"trex","domain":"trex.com","ip_add":"48.0.0.1","hit_count":1939,"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
+[2024-03-04 17:33:47] [policyServer.c:251] - trex.com updated to the database
+[2024-03-04 17:33:50] [policyServer.c:613] - Response: [{"id":"95feaa1a-ca37-4789-bbb5-4b79f83ad6fd","message":"Blocked list hit count successfully updated"}] 
+[2024-03-04 17:33:50] [policyServer.c:824] - Send Count Success: [{"id": "95feaa1a-ca37-4789-bbb5-4b79f83ad6fd", "hit_count": 1189}]
+[2024-03-04 17:33:52] [policyServer.c:1549] - Time : 2024-03-04T17:33:52.000Z
+[2024-03-04 17:33:52] [policyServer.c:1550] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-04T17:33:52.000Z"}]
+[2024-03-04 17:33:52] [policyServer.c:613] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":1588,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-04T17:33:52.000Z"}]} 
+[2024-03-04 17:33:57] [policyServer.c:1549] - Time : 2024-03-04T17:33:57.000Z
+[2024-03-04 17:33:57] [policyServer.c:1550] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-04T17:33:57.000Z"}]
+[2024-03-04 17:33:57] [policyServer.c:613] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":1589,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-04T17:33:57.000Z"}]} 
+[2024-03-04 17:34:00] [policyServer.c:613] - Response: [{"id":"95feaa1a-ca37-4789-bbb5-4b79f83ad6fd","message":"Blocked list hit count successfully updated"}] 
+[2024-03-04 17:34:00] [policyServer.c:824] - Send Count Success: [{"id": "95feaa1a-ca37-4789-bbb5-4b79f83ad6fd", "hit_count": 4607}]
+[2024-03-04 17:34:00] [policyServer.c:415] - Opening file stats/stats2024-03-04T17:34:00.csv
+[2024-03-04 17:34:00] [policyServer.c:891] - Sending statistics to server
+[2024-03-04 17:34:02] [policyServer.c:1549] - Time : 2024-03-04T17:34:02.000Z
+[2024-03-04 17:34:02] [policyServer.c:1550] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-04T17:34:02.000Z"}]
+[2024-03-04 17:34:02] [policyServer.c:613] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":1590,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-04T17:34:02.000Z"}]} 
+[2024-03-04 17:34:07] [policyServer.c:1549] - Time : 2024-03-04T17:34:07.000Z
+[2024-03-04 17:34:07] [policyServer.c:1550] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-04T17:34:07.000Z"}]
+[2024-03-04 17:34:07] [policyServer.c:613] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":1591,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-04T17:34:07.000Z"}]} 
+[2024-03-04 17:34:10] [policyServer.c:613] - Response: [{"id":"95feaa1a-ca37-4789-bbb5-4b79f83ad6fd","message":"Blocked list hit count successfully updated"},{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","message":"Blocked list hit count successfully updated"}] 
+[2024-03-04 17:34:10] [policyServer.c:824] - Send Count Success: [{"id": "95feaa1a-ca37-4789-bbb5-4b79f83ad6fd", "hit_count": 4331}, {"id": "c2e00379-4c76-4616-b1a1-0c322e2d12d5", "hit_count": 1539}]
+[2024-03-04 17:34:12] [policyServer.c:1549] - Time : 2024-03-04T17:34:12.000Z
+[2024-03-04 17:34:12] [policyServer.c:1550] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-04T17:34:12.000Z"}]
+[2024-03-04 17:34:12] [policyServer.c:613] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":1592,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-04T17:34:12.000Z"}]} 
+[2024-03-04 17:34:17] [policyServer.c:1549] - Time : 2024-03-04T17:34:17.000Z
+[2024-03-04 17:34:17] [policyServer.c:1550] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-04T17:34:17.000Z"}]
+[2024-03-04 17:34:17] [policyServer.c:613] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":1593,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-04T17:34:17.000Z"}]} 
+[2024-03-04 17:34:21] [policyServer.c:613] - Response: [{"id":"95feaa1a-ca37-4789-bbb5-4b79f83ad6fd","message":"Blocked list hit count successfully updated"},{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","message":"Blocked list hit count successfully updated"}] 
+[2024-03-04 17:34:21] [policyServer.c:824] - Send Count Success: [{"id": "95feaa1a-ca37-4789-bbb5-4b79f83ad6fd", "hit_count": 3402}, {"id": "c2e00379-4c76-4616-b1a1-0c322e2d12d5", "hit_count": 5407}]
+[2024-03-04 17:34:22] [policyServer.c:1549] - Time : 2024-03-04T17:34:22.000Z
+[2024-03-04 17:34:22] [policyServer.c:1550] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-04T17:34:22.000Z"}]
+[2024-03-04 17:34:22] [policyServer.c:613] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":1594,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-04T17:34:22.000Z"}]} d
