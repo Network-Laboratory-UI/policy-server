@@ -1,0 +1,447 @@
+[2024-03-06 03:24:12] [policyServer.c:1246] - Created 'policies' table.
+[2024-03-06 03:24:12] [policyServer.c:1634] - Starting the application
+[2024-03-06 03:24:12] [policyServer.c:523] - MAX_PACKET_LEN: 1500
+[2024-03-06 03:24:12] [policyServer.c:528] - RX_RING_SIZE: 1024
+[2024-03-06 03:24:12] [policyServer.c:533] - TX_RING_SIZE: 1024
+[2024-03-06 03:24:12] [policyServer.c:538] - NUM_MBUFS: 8191
+[2024-03-06 03:24:12] [policyServer.c:543] - MBUF_CACHE_SIZE: 250
+[2024-03-06 03:24:12] [policyServer.c:548] - BURST_SIZE: 32
+[2024-03-06 03:24:12] [policyServer.c:553] - MAX_TCP_PAYLOAD_LEN: 1024
+[2024-03-06 03:24:12] [policyServer.c:578] - PS ID: 381ad33f-ec29-4a7f-a38c-09447a9efe13
+[2024-03-06 03:24:12] [policyServer.c:583] - HOSTNAME: http://192.168.0.70:3000
+[2024-03-06 03:24:12] [policyServer.c:558] - STAT_FILE: stats/stats
+[2024-03-06 03:24:12] [policyServer.c:563] - STAT_FILE_EXT: .csv
+[2024-03-06 03:24:12] [policyServer.c:568] - TIMER_PERIOD_STATS: 1
+[2024-03-06 03:24:12] [policyServer.c:573] - TIMER_PERIOD_SEND: 1
+[2024-03-06 03:24:12] [policyServer.c:1642] - Load config done
+[2024-03-06 03:24:12] [policyServer.c:1662] - Clean the statistics data
+[2024-03-06 03:24:12] [policyServer.c:1682] - Create mbuf pool done
+[2024-03-06 03:24:12] [policyServer.c:402] - Port 0 MAC: ae 50 82 be 45 ac
+[2024-03-06 03:24:12] [policyServer.c:402] - Port 1 MAC: 0a 73 10 a5 ce 50
+[2024-03-06 03:24:12] [policyServer.c:1710] - Main on core 1
+[2024-03-06 03:24:12] [policyServer.c:1716] - Stats on core 2
+[2024-03-06 03:24:12] [policyServer.c:1722] - DB on core 3
+[2024-03-06 03:24:12] [policyServer.c:1728] - Run the lcore main function
+[2024-03-06 03:24:12] [policyServer.c:1733] - Run the stats
+[2024-03-06 03:24:12] [policyServer.c:1737] - Run the Kafka Broker
+[2024-03-06 03:24:12] [policyServer.c:1494] - 
+Core 1 forwarding packets. [Ctrl+C to quit]
+[2024-03-06 03:24:12] [policyServer.c:1742] - Run the heartbeat
+[2024-03-06 03:24:12] [policyServer.c:1457] - Starting stats process in 2
+[2024-03-06 03:24:12] [policyServer.c:1595] - Time : 2024-03-06T03:24:12.000Z
+[2024-03-06 03:24:12] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:12.000Z"}]
+[2024-03-06 03:24:13] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19237,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:24:12.000Z"}]} 
+[2024-03-06 03:24:13] [policyServer.c:610] - Response: [] 
+[2024-03-06 03:24:13] [policyServer.c:836] - Send Count Success: []
+[2024-03-06 03:24:13] [policyServer.c:415] - Opening file stats/stats2024-03-06T03:24:00.csv
+[2024-03-06 03:24:13] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:24:13] [policyServer.c:910] - Sending statistics to server
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-04T09:08:11.069Z","updatedAt":"2024-03-04T09:08:11.069Z","id":"95feaa1a-ca37-4789-bbb5-4b79f83ad6fd","hit_count":0,"name":"Universitas Indonesia","domain":"ui.ac.id","ip_add":"192.192.192.192"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - ui.ac.id updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-04T10:37:55.273Z","updatedAt":"2024-03-04T10:37:55.273Z","id":"cfd83865-a3c6-40f6-adab-a3223f197b18","hit_count":0,"name":"Facebook","domain":"facebook.co.id","ip_add":"191919199191"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - facebook.co.id updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":"2024-03-04T15:06:14.310Z","id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","hit_count":0,"name":"trex","domain":"trex.com","ip_add":"22.0.0.11"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - trex.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"updatedBlockedList":{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","name":"trex","domain":"trex.com","ip_add":"48.0.0.1","hit_count":0,"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
+[2024-03-06 03:24:13] [policyServer.c:250] - trex.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"updatedBlockedList":{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","name":"trex","domain":"trex.com","ip_add":"40.0.0.1","hit_count":1939,"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
+[2024-03-06 03:24:13] [policyServer.c:250] - trex.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"updatedBlockedList":{"id":"c2e00379-4c76-4616-b1a1-0c322e2d12d5","name":"trex","domain":"trex.com","ip_add":"48.0.0.1","hit_count":1939,"createdAt":"2024-03-04T15:06:14.310Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
+[2024-03-06 03:24:13] [policyServer.c:250] - trex.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:41.853Z","updatedAt":"2024-03-05T02:01:41.853Z","id":"996302e6-3589-49fb-8085-c4bf79794cc7","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:43.028Z","updatedAt":"2024-03-05T02:01:43.028Z","id":"866b8991-e8b5-4bb3-a1d1-e3c16b2841b0","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:44.237Z","updatedAt":"2024-03-05T02:01:44.237Z","id":"80cdde6a-a2eb-4eac-9f22-f09f36019c17","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:44.985Z","updatedAt":"2024-03-05T02:01:44.985Z","id":"e2ea9744-5636-48c1-8fda-4e1349d511e2","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:46.656Z","updatedAt":"2024-03-05T02:01:46.656Z","id":"ae757581-a5a7-4a8c-bdeb-a9a92a041ee4","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:47.489Z","updatedAt":"2024-03-05T02:01:47.489Z","id":"c650f84b-2894-4c3a-af6d-53f090dc7d77","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:49.742Z","updatedAt":"2024-03-05T02:01:49.742Z","id":"87ffe91c-ebe6-4c0d-97e1-74ec2c493ff5","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:50.482Z","updatedAt":"2024-03-05T02:01:50.482Z","id":"d06d6a8a-0b1a-44a3-aaec-7c0fdeba0bfe","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:52.367Z","updatedAt":"2024-03-05T02:01:52.367Z","id":"39ab6c05-2a72-48d1-be6b-391726858fae","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:53.659Z","updatedAt":"2024-03-05T02:01:53.659Z","id":"04d39ef8-f499-4966-8948-2ae1c62921bc","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:01:55.369Z","updatedAt":"2024-03-05T02:01:55.369Z","id":"55147400-137e-49b9-949d-2e8598ba77ae","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:02.354Z","updatedAt":"2024-03-05T02:02:02.354Z","id":"ca854af5-3dd1-455c-a80b-e026ec09eb51","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:04.328Z","updatedAt":"2024-03-05T02:02:04.328Z","id":"18d1402a-6107-43b8-9325-4fa3b6c6d955","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:14.319Z","updatedAt":"2024-03-05T02:02:14.319Z","id":"9a19a484-8f42-4e13-af6a-5a43b68646ed","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:15.312Z","updatedAt":"2024-03-05T02:02:15.312Z","id":"95737ea8-ef21-4dcb-8520-381e31e66bdb","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:16.850Z","updatedAt":"2024-03-05T02:02:16.850Z","id":"30f6b273-f276-4ae9-899d-6c2f49a9de89","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:17.540Z","updatedAt":"2024-03-05T02:02:17.540Z","id":"93dc140a-c90c-4421-9af6-6dc0d96fa475","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:19.423Z","updatedAt":"2024-03-05T02:02:19.423Z","id":"473a44c2-5b99-4854-9e05-c77321360f4d","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:20.182Z","updatedAt":"2024-03-05T02:02:20.182Z","id":"14de7bec-afef-4f7e-a0f5-9edeba2db392","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:22.155Z","updatedAt":"2024-03-05T02:02:22.155Z","id":"0df0dc87-dd75-45f2-8bf5-f2b4c6f5c8cb","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:13] [policyServer.c:145] - Received message: {"createdBlockedList":{"createdAt":"2024-03-05T02:02:22.856Z","updatedAt":"2024-03-05T02:02:22.856Z","id":"1944ad80-8130-4e1e-a9c1-615f46642699","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-06 03:24:13] [policyServer.c:250] - wikipedia.com updated to the database
+[2024-03-06 03:24:14] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:24:15] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:24:16] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:24:17] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:24:18] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:24:18] [policyServer.c:1595] - Time : 2024-03-06T03:24:18.000Z
+[2024-03-06 03:24:18] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:18.000Z"}]
+[2024-03-06 03:24:18] [policyServer.c:1607] - Heartbeat failed: Couldn't connect to server
+[2024-03-06 03:24:19] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:24:20] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:24:21] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:24:22] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:24:23] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:24:23] [policyServer.c:1595] - Time : 2024-03-06T03:24:23.000Z
+[2024-03-06 03:24:23] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:23.000Z"}]
+[2024-03-06 03:24:23] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19238,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:24:23.000Z"}]} 
+[2024-03-06 03:24:24] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:24:25] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:24:26] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:24:27] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:24:28] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:24:28] [policyServer.c:1595] - Time : 2024-03-06T03:24:28.000Z
+[2024-03-06 03:24:28] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:28.000Z"}]
+[2024-03-06 03:24:28] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19239,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:24:28.000Z"}]} 
+[2024-03-06 03:24:29] [policyServer.c:764] - AVG Service Time: 0.000017
+[2024-03-06 03:24:30] [policyServer.c:764] - AVG Service Time: 0.000007
+[2024-03-06 03:24:31] [policyServer.c:764] - AVG Service Time: 0.000011
+[2024-03-06 03:24:32] [policyServer.c:764] - AVG Service Time: 0.000007
+[2024-03-06 03:24:33] [policyServer.c:764] - AVG Service Time: 0.000014
+[2024-03-06 03:24:33] [policyServer.c:1595] - Time : 2024-03-06T03:24:33.000Z
+[2024-03-06 03:24:33] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:33.000Z"}]
+[2024-03-06 03:24:34] [policyServer.c:764] - AVG Service Time: 0.000015
+[2024-03-06 03:24:34] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19240,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:24:33.000Z"}]} 
+[2024-03-06 03:24:35] [policyServer.c:764] - AVG Service Time: 0.000009
+[2024-03-06 03:24:36] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:24:37] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:24:38] [policyServer.c:764] - AVG Service Time: 0.000021
+[2024-03-06 03:24:39] [policyServer.c:764] - AVG Service Time: 0.000024
+[2024-03-06 03:24:39] [policyServer.c:1595] - Time : 2024-03-06T03:24:39.000Z
+[2024-03-06 03:24:39] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:39.000Z"}]
+[2024-03-06 03:24:39] [policyServer.c:1607] - Heartbeat failed: Couldn't connect to server
+[2024-03-06 03:24:40] [policyServer.c:764] - AVG Service Time: 0.000026
+[2024-03-06 03:24:41] [policyServer.c:764] - AVG Service Time: 0.000013
+[2024-03-06 03:24:42] [policyServer.c:764] - AVG Service Time: 0.000010
+[2024-03-06 03:24:43] [policyServer.c:764] - AVG Service Time: 0.000041
+[2024-03-06 03:24:44] [policyServer.c:764] - AVG Service Time: 0.000037
+[2024-03-06 03:24:44] [policyServer.c:1595] - Time : 2024-03-06T03:24:44.000Z
+[2024-03-06 03:24:44] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:44.000Z"}]
+[2024-03-06 03:24:44] [policyServer.c:1607] - Heartbeat failed: Couldn't connect to server
+[2024-03-06 03:24:45] [policyServer.c:764] - AVG Service Time: 0.000018
+[2024-03-06 03:24:46] [policyServer.c:764] - AVG Service Time: 0.000038
+[2024-03-06 03:24:47] [policyServer.c:764] - AVG Service Time: 0.000021
+[2024-03-06 03:24:48] [policyServer.c:764] - AVG Service Time: 0.000035
+[2024-03-06 03:24:49] [policyServer.c:764] - AVG Service Time: 0.000018
+[2024-03-06 03:24:49] [policyServer.c:1595] - Time : 2024-03-06T03:24:49.000Z
+[2024-03-06 03:24:49] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:49.000Z"}]
+[2024-03-06 03:24:49] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19241,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:24:49.000Z"}]} 
+[2024-03-06 03:24:50] [policyServer.c:764] - AVG Service Time: 0.000013
+[2024-03-06 03:24:51] [policyServer.c:764] - AVG Service Time: 0.000011
+[2024-03-06 03:24:52] [policyServer.c:764] - AVG Service Time: 0.000044
+[2024-03-06 03:24:53] [policyServer.c:764] - AVG Service Time: 0.000023
+[2024-03-06 03:24:54] [policyServer.c:764] - AVG Service Time: 0.000017
+[2024-03-06 03:24:54] [policyServer.c:1595] - Time : 2024-03-06T03:24:54.000Z
+[2024-03-06 03:24:54] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:54.000Z"}]
+[2024-03-06 03:24:54] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19242,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:24:54.000Z"}]} 
+[2024-03-06 03:24:55] [policyServer.c:764] - AVG Service Time: 0.000013
+[2024-03-06 03:24:56] [policyServer.c:764] - AVG Service Time: 0.000053
+[2024-03-06 03:24:57] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:24:58] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:24:59] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:24:59] [policyServer.c:1595] - Time : 2024-03-06T03:24:59.000Z
+[2024-03-06 03:24:59] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:24:59.000Z"}]
+[2024-03-06 03:24:59] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19243,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:24:59.000Z"}]} 
+[2024-03-06 03:25:00] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:25:00] [policyServer.c:415] - Opening file stats/stats2024-03-06T03:25:00.csv
+[2024-03-06 03:25:00] [policyServer.c:910] - Sending statistics to server
+[2024-03-06 03:25:00] [policyServer.c:610] - Response: [{"id":"cfd83865-a3c6-40f6-adab-a3223f197b18","message":"Blocked list hit count successfully updated"}] 
+[2024-03-06 03:25:00] [policyServer.c:836] - Send Count Success: [{"id": "cfd83865-a3c6-40f6-adab-a3223f197b18", "hit_count": 542}]
+[2024-03-06 03:25:01] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:02] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:03] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:04] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:04] [policyServer.c:1595] - Time : 2024-03-06T03:25:04.000Z
+[2024-03-06 03:25:04] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:25:04.000Z"}]
+[2024-03-06 03:25:05] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:25:06] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:25:07] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:25:08] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:25:08] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19244,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:25:04.000Z"}]} 
+[2024-03-06 03:25:09] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:25:10] [policyServer.c:764] - AVG Service Time: 0.000011
+[2024-03-06 03:25:11] [policyServer.c:764] - AVG Service Time: 0.000007
+[2024-03-06 03:25:12] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:13] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:13] [policyServer.c:1595] - Time : 2024-03-06T03:25:13.000Z
+[2024-03-06 03:25:13] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:25:13.000Z"}]
+[2024-03-06 03:25:13] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19245,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:25:13.000Z"}]} 
+[2024-03-06 03:25:14] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:15] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:16] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:25:17] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:18] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:18] [policyServer.c:1595] - Time : 2024-03-06T03:25:18.000Z
+[2024-03-06 03:25:18] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:25:18.000Z"}]
+[2024-03-06 03:25:19] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:20] [policyServer.c:764] - AVG Service Time: 0.000011
+[2024-03-06 03:25:21] [policyServer.c:764] - AVG Service Time: 0.000011
+[2024-03-06 03:25:22] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:25:23] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:25:23] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19246,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:25:18.000Z"}]} 
+[2024-03-06 03:25:24] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:25:25] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:25:26] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:25:27] [policyServer.c:764] - AVG Service Time: 0.000014
+[2024-03-06 03:25:28] [policyServer.c:764] - AVG Service Time: 0.000007
+[2024-03-06 03:25:28] [policyServer.c:1595] - Time : 2024-03-06T03:25:28.000Z
+[2024-03-06 03:25:28] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:25:28.000Z"}]
+[2024-03-06 03:25:29] [policyServer.c:764] - AVG Service Time: 0.000019
+[2024-03-06 03:25:30] [policyServer.c:764] - AVG Service Time: 0.000009
+[2024-03-06 03:25:30] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19247,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:25:28.000Z"}]} 
+[2024-03-06 03:25:31] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:25:32] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:33] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:25:34] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:35] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:35] [policyServer.c:1595] - Time : 2024-03-06T03:25:35.000Z
+[2024-03-06 03:25:35] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:25:35.000Z"}]
+[2024-03-06 03:25:36] [policyServer.c:764] - AVG Service Time: 0.000009
+[2024-03-06 03:25:37] [policyServer.c:764] - AVG Service Time: 0.000013
+[2024-03-06 03:25:38] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:39] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:40] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:40] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19248,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:25:35.000Z"}]} 
+[2024-03-06 03:25:41] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:42] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:43] [policyServer.c:764] - AVG Service Time: 0.000010
+[2024-03-06 03:25:44] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:25:45] [policyServer.c:764] - AVG Service Time: 0.000012
+[2024-03-06 03:25:45] [policyServer.c:1595] - Time : 2024-03-06T03:25:45.000Z
+[2024-03-06 03:25:45] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:25:45.000Z"}]
+[2024-03-06 03:25:46] [policyServer.c:764] - AVG Service Time: 0.000007
+[2024-03-06 03:25:47] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:47] [policyServer.c:1607] - Heartbeat failed: Failure when receiving data from the peer
+[2024-03-06 03:25:48] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:49] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:50] [policyServer.c:764] - AVG Service Time: 0.000000
+[2024-03-06 03:25:51] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:52] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:52] [policyServer.c:1595] - Time : 2024-03-06T03:25:52.000Z
+[2024-03-06 03:25:52] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:25:52.000Z"}]
+[2024-03-06 03:25:53] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:25:54] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:54] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19249,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:25:52.000Z"}]} 
+[2024-03-06 03:25:55] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:25:56] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:25:57] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:58] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:25:59] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:25:59] [policyServer.c:1595] - Time : 2024-03-06T03:25:59.000Z
+[2024-03-06 03:25:59] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:25:59.000Z"}]
+[2024-03-06 03:26:00] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:26:00] [policyServer.c:415] - Opening file stats/stats2024-03-06T03:26:00.csv
+[2024-03-06 03:26:00] [policyServer.c:910] - Sending statistics to server
+[2024-03-06 03:26:01] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19250,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:25:59.000Z"}]} 
+[2024-03-06 03:26:06] [policyServer.c:1595] - Time : 2024-03-06T03:26:06.000Z
+[2024-03-06 03:26:06] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:26:06.000Z"}]
+[2024-03-06 03:26:08] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19251,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:26:06.000Z"}]} 
+[2024-03-06 03:26:13] [policyServer.c:1595] - Time : 2024-03-06T03:26:13.000Z
+[2024-03-06 03:26:13] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:26:13.000Z"}]
+[2024-03-06 03:26:20] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19252,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:26:13.000Z"}]} 
+[2024-03-06 03:26:25] [policyServer.c:1595] - Time : 2024-03-06T03:26:25.000Z
+[2024-03-06 03:26:25] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:26:25.000Z"}]
+[2024-03-06 03:26:36] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19253,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:26:25.000Z"}]} 
+[2024-03-06 03:26:41] [policyServer.c:1595] - Time : 2024-03-06T03:26:41.000Z
+[2024-03-06 03:26:41] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:26:41.000Z"}]
+[2024-03-06 03:26:44] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19254,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:26:41.000Z"}]} 
+[2024-03-06 03:26:49] [policyServer.c:1595] - Time : 2024-03-06T03:26:49.000Z
+[2024-03-06 03:26:49] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:26:49.000Z"}]
+[2024-03-06 03:26:51] [policyServer.c:1607] - Heartbeat failed: Failure when receiving data from the peer
+[2024-03-06 03:26:52] [policyServer.c:610] - Response: [{"id":"cfd83865-a3c6-40f6-adab-a3223f197b18","message":"Blocked list hit count successfully updated"}] 
+[2024-03-06 03:26:52] [policyServer.c:836] - Send Count Success: [{"id": "cfd83865-a3c6-40f6-adab-a3223f197b18", "hit_count": 10000}]
+[2024-03-06 03:26:56] [policyServer.c:1595] - Time : 2024-03-06T03:26:56.000Z
+[2024-03-06 03:26:56] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:26:56.000Z"}]
+[2024-03-06 03:26:57] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19255,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:26:56.000Z"}]} 
+[2024-03-06 03:26:59] [policyServer.c:764] - AVG Service Time: 0.000413
+[2024-03-06 03:27:00] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:00] [policyServer.c:415] - Opening file stats/stats2024-03-06T03:27:00.csv
+[2024-03-06 03:27:00] [policyServer.c:910] - Sending statistics to server
+[2024-03-06 03:27:02] [policyServer.c:1595] - Time : 2024-03-06T03:27:02.000Z
+[2024-03-06 03:27:02] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:27:02.000Z"}]
+[2024-03-06 03:27:06] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19256,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:27:02.000Z"}]} 
+[2024-03-06 03:27:06] [policyServer.c:610] - Response: [{"id":"cfd83865-a3c6-40f6-adab-a3223f197b18","message":"Blocked list hit count successfully updated"}] 
+[2024-03-06 03:27:06] [policyServer.c:836] - Send Count Success: [{"id": "cfd83865-a3c6-40f6-adab-a3223f197b18", "hit_count": 10000}]
+[2024-03-06 03:27:06] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:07] [policyServer.c:764] - AVG Service Time: 0.000078
+[2024-03-06 03:27:08] [policyServer.c:764] - AVG Service Time: 0.000010
+[2024-03-06 03:27:09] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:27:10] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:27:11] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:27:11] [policyServer.c:1595] - Time : 2024-03-06T03:27:11.000Z
+[2024-03-06 03:27:11] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:27:11.000Z"}]
+[2024-03-06 03:27:12] [policyServer.c:764] - AVG Service Time: 0.000015
+[2024-03-06 03:27:13] [policyServer.c:764] - AVG Service Time: 0.000008
+[2024-03-06 03:27:13] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19257,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:27:11.000Z"}]} 
+[2024-03-06 03:27:14] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:27:15] [policyServer.c:764] - AVG Service Time: 0.000036
+[2024-03-06 03:27:16] [policyServer.c:764] - AVG Service Time: 0.000008
+[2024-03-06 03:27:17] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:27:18] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:18] [policyServer.c:1595] - Time : 2024-03-06T03:27:18.000Z
+[2024-03-06 03:27:18] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:27:18.000Z"}]
+[2024-03-06 03:27:19] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:20] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:21] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:27:22] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:27:22] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19258,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:27:18.000Z"}]} 
+[2024-03-06 03:27:23] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:27:24] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:27:25] [policyServer.c:764] - AVG Service Time: 0.000013
+[2024-03-06 03:27:26] [policyServer.c:764] - AVG Service Time: 0.000008
+[2024-03-06 03:27:27] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:27:27] [policyServer.c:1595] - Time : 2024-03-06T03:27:27.000Z
+[2024-03-06 03:27:27] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:27:27.000Z"}]
+[2024-03-06 03:27:28] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:29] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:30] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:31] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:32] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:33] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:27:34] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:27:35] [policyServer.c:764] - AVG Service Time: 0.000006
+[2024-03-06 03:27:36] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:37] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:27:38] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:27:39] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:40] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:41] [policyServer.c:764] - AVG Service Time: 0.000010
+[2024-03-06 03:27:42] [policyServer.c:764] - AVG Service Time: 0.000008
+[2024-03-06 03:27:43] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:44] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:45] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:46] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:47] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:48] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:49] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:50] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:50] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19259,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:27:27.000Z"}]} 
+[2024-03-06 03:27:51] [policyServer.c:764] - AVG Service Time: 0.000008
+[2024-03-06 03:27:52] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:27:53] [policyServer.c:764] - AVG Service Time: 0.000013
+[2024-03-06 03:27:54] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:27:55] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:55] [policyServer.c:1595] - Time : 2024-03-06T03:27:55.000Z
+[2024-03-06 03:27:55] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:27:55.000Z"}]
+[2024-03-06 03:27:56] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:27:57] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:27:58] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:27:59] [policyServer.c:764] - AVG Service Time: 0.000013
+[2024-03-06 03:28:00] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:00] [policyServer.c:415] - Opening file stats/stats2024-03-06T03:28:00.csv
+[2024-03-06 03:28:00] [policyServer.c:910] - Sending statistics to server
+[2024-03-06 03:28:07] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19260,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:27:55.000Z"}]} 
+[2024-03-06 03:28:08] [policyServer.c:610] - Response: [{"id":"cfd83865-a3c6-40f6-adab-a3223f197b18","message":"Blocked list hit count successfully updated"}] 
+[2024-03-06 03:28:08] [policyServer.c:836] - Send Count Success: [{"id": "cfd83865-a3c6-40f6-adab-a3223f197b18", "hit_count": 10000}]
+[2024-03-06 03:28:08] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:09] [policyServer.c:764] - AVG Service Time: 0.000108
+[2024-03-06 03:28:10] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:11] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:12] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:28:12] [policyServer.c:1595] - Time : 2024-03-06T03:28:12.000Z
+[2024-03-06 03:28:12] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:12.000Z"}]
+[2024-03-06 03:28:12] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19261,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:28:12.000Z"}]} 
+[2024-03-06 03:28:13] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:14] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:15] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:16] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:17] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:28:17] [policyServer.c:1595] - Time : 2024-03-06T03:28:17.000Z
+[2024-03-06 03:28:17] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:17.000Z"}]
+[2024-03-06 03:28:17] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19262,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:28:17.000Z"}]} 
+[2024-03-06 03:28:18] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:28:19] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:20] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:21] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:22] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:22] [policyServer.c:1595] - Time : 2024-03-06T03:28:22.000Z
+[2024-03-06 03:28:22] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:22.000Z"}]
+[2024-03-06 03:28:22] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19263,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:28:22.000Z"}]} 
+[2024-03-06 03:28:23] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:24] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:25] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:26] [policyServer.c:764] - AVG Service Time: 0.000012
+[2024-03-06 03:28:27] [policyServer.c:764] - AVG Service Time: 0.000007
+[2024-03-06 03:28:27] [policyServer.c:1595] - Time : 2024-03-06T03:28:27.000Z
+[2024-03-06 03:28:27] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:27.000Z"}]
+[2024-03-06 03:28:27] [policyServer.c:1607] - Heartbeat failed: Failure when receiving data from the peer
+[2024-03-06 03:28:28] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:28:29] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:28:30] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:28:31] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:28:32] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:28:32] [policyServer.c:1595] - Time : 2024-03-06T03:28:32.000Z
+[2024-03-06 03:28:32] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:32.000Z"}]
+[2024-03-06 03:28:32] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19264,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:28:32.000Z"}]} 
+[2024-03-06 03:28:33] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:34] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:28:35] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:36] [policyServer.c:764] - AVG Service Time: 0.000001
+[2024-03-06 03:28:37] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:28:37] [policyServer.c:1595] - Time : 2024-03-06T03:28:37.000Z
+[2024-03-06 03:28:37] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:37.000Z"}]
+[2024-03-06 03:28:37] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19265,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:28:37.000Z"}]} 
+[2024-03-06 03:28:38] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:28:39] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:28:40] [policyServer.c:764] - AVG Service Time: 0.000009
+[2024-03-06 03:28:41] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:28:42] [policyServer.c:764] - AVG Service Time: 0.000011
+[2024-03-06 03:28:42] [policyServer.c:1595] - Time : 2024-03-06T03:28:42.000Z
+[2024-03-06 03:28:42] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:42.000Z"}]
+[2024-03-06 03:28:42] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19266,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:28:42.000Z"}]} 
+[2024-03-06 03:28:43] [policyServer.c:764] - AVG Service Time: 0.000021
+[2024-03-06 03:28:44] [policyServer.c:764] - AVG Service Time: 0.000015
+[2024-03-06 03:28:45] [policyServer.c:764] - AVG Service Time: 0.000009
+[2024-03-06 03:28:46] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:47] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:28:47] [policyServer.c:1595] - Time : 2024-03-06T03:28:47.000Z
+[2024-03-06 03:28:47] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:47.000Z"}]
+[2024-03-06 03:28:47] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19267,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:28:47.000Z"}]} 
+[2024-03-06 03:28:48] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:28:49] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:28:50] [policyServer.c:764] - AVG Service Time: 0.000008
+[2024-03-06 03:28:51] [policyServer.c:764] - AVG Service Time: 0.000004
+[2024-03-06 03:28:52] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:52] [policyServer.c:1595] - Time : 2024-03-06T03:28:52.000Z
+[2024-03-06 03:28:52] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:52.000Z"}]
+[2024-03-06 03:28:52] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19268,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:28:52.000Z"}]} 
+[2024-03-06 03:28:53] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:54] [policyServer.c:764] - AVG Service Time: 0.000008
+[2024-03-06 03:28:55] [policyServer.c:764] - AVG Service Time: 0.000005
+[2024-03-06 03:28:56] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:57] [policyServer.c:764] - AVG Service Time: 0.000003
+[2024-03-06 03:28:57] [policyServer.c:1595] - Time : 2024-03-06T03:28:57.000Z
+[2024-03-06 03:28:57] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:28:57.000Z"}]
+[2024-03-06 03:28:57] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19269,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:28:57.000Z"}]} 
+[2024-03-06 03:28:58] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:28:59] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:29:00] [policyServer.c:764] - AVG Service Time: 0.000002
+[2024-03-06 03:29:00] [policyServer.c:415] - Opening file stats/stats2024-03-06T03:29:00.csv
+[2024-03-06 03:29:00] [policyServer.c:910] - Sending statistics to server
+[2024-03-06 03:29:02] [policyServer.c:1595] - Time : 2024-03-06T03:29:02.000Z
+[2024-03-06 03:29:02] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:29:02.000Z"}]
+[2024-03-06 03:29:12] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19270,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:29:02.000Z"}]} 
+[2024-03-06 03:29:17] [policyServer.c:1595] - Time : 2024-03-06T03:29:17.000Z
+[2024-03-06 03:29:17] [policyServer.c:1596] - Post Fields : [{"ps_id": "381ad33f-ec29-4a7f-a38c-09447a9efe13", "time": "2024-03-06T03:29:17.000Z"}]
+[2024-03-06 03:29:32] [policyServer.c:610] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":19271,"ps_id":"381ad33f-ec29-4a7f-a38c-09447a9efe13","time":"2024-03-06T03:29:17.000Z"}]} 

@@ -34,7 +34,7 @@
 #define CACHE_SIZE 1000
 #define RTE_TCP_RST 0x04
 #define MAX_STRINGS 64
-#define MAX_LENGTH 1000
+#define MAX_LENGTH 10000
 #define KAFKA_TOPIC "dpdk-blocked-list"
 #define KAFKA_BROKER "192.168.0.90:9092"
 
@@ -53,7 +53,7 @@ char PS_ID[200];
 char STAT_FILE[100];
 char STAT_FILE_EXT[100];
 char HOSTNAME[100];
-char hitCount[MAX_STRINGS * CACHE_SIZE][MAX_STRINGS];
+char hitCount[MAX_LENGTH][MAX_STRINGS];
 uint64_t hitCounter = 0;
 static sqlite3 *db;
 clock_t start, end;
@@ -221,14 +221,10 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	else if (strcmp(type_str, "update") == 0)
 	{
 		query_len = snprintf(sql_query, sizeof(sql_query), "UPDATE policies SET domain='%s', ip_address='%s' WHERE id='%s';", domain_str, ip_str, id_str);
-		memset(ip_cache, 0, sizeof(ip_cache));
-		memset(domain_cache, 0, sizeof(domain_cache));
 	}
 	else if (strcmp(type_str, "delete") == 0)
 	{
 		query_len = snprintf(sql_query, sizeof(sql_query), "DELETE FROM policies WHERE id='%s';", id_str);
-		memset(ip_cache, 0, sizeof(ip_cache));
-		memset(domain_cache, 0, sizeof(domain_cache));
 	}
 	else
 	{
@@ -243,7 +239,8 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	}
 
 	char *errmsg = NULL;
-	if (sqlite3_exec(db, sql_query, NULL, 0, &errmsg) != SQLITE_OK)
+	int sqlite_result = sqlite3_exec(db, sql_query, NULL, 0, &errmsg);
+	if (sqlite_result != SQLITE_OK)
 	{
 		logMessage(__FILE__, __LINE__, "SQL error: %s\n", errmsg);
 		sqlite3_free(errmsg);
@@ -254,7 +251,8 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	}
 
 cleanup:
-	json_decref(root);
+	if (root)
+		json_decref(root);
 }
 
 // Function to set up Kafka consumer
@@ -481,7 +479,6 @@ print_stats(int *last_run_print)
 				   port_statistics[portid].err_tx);
 		}
 		printf("\n=====================================================");
-		
 		fflush(stdout);
 		clear_stats();
 		*last_run_print = timeinfo->tm_sec;
@@ -498,8 +495,6 @@ static void print_stats_csv(FILE *f, char *timestamp)
 	// Write data to the CSV file
 	fprintf(f, "%s,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", PS_ID, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[0].tx_count, port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, port_statistics[0].mbuf_err, port_statistics[1].rx_count, port_statistics[1].tx_count, port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, port_statistics[1].mbuf_err, timestamp, port_statistics[1].throughput);
 }
-
-
 
 /*
  * The load configuration file function
@@ -615,6 +610,7 @@ size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 	logMessage(__FILE__, __LINE__, "Response: %.*s \n", (int)real_size, (char *)contents);
 	return real_size;
 }
+
 static void populate_json_hitcount(json_t *jsonArray)
 {
 	for (int i = 0; i < MAX_LENGTH; i++)
@@ -760,7 +756,7 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 
 		// convert the time to string
 		strftime(time_str, sizeof(time_str), format, tm_info);
-if (count_service_time > 0)
+		if (count_service_time > 0)
 		{
 			avg_service_time = service_time / count_service_time;
 			service_time = 0;
@@ -773,7 +769,6 @@ if (count_service_time > 0)
 		fflush(*f_stat);
 
 		// clear the stats
-		
 
 		if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_file)
 		{
@@ -797,46 +792,62 @@ if (count_service_time > 0)
 		*last_run_stat = current_sec;
 	}
 }
-
 static void send_hitcount_to_server(json_t *jsonArray)
 {
 	CURL *curl;
 	CURLcode res;
-	struct curl_slist *headers = NULL; // Initialize headers to NULL
+	struct curl_slist *headers = NULL;
 	char *jsonString = json_dumps(jsonArray, 0);
 	char url[256];
 
 	sprintf(url, "%s/ps/blocked-list-count", HOSTNAME);
+
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 	curl = curl_easy_init();
 
-	if (curl)
+	if (!curl)
 	{
-		headers = curl_slist_append(headers, "Content-Type: application/json");
-
-		curl_easy_setopt(curl, CURLOPT_URL, url);
-		curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString);
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-
-		res = curl_easy_perform(curl);
-
-		if (res != CURLE_OK)
-		{
-			logMessage(__FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-			logMessage(__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
-		}
-		else
-		{
-			logMessage(__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
-		}
-
-		curl_slist_free_all(headers);
-		curl_easy_cleanup(curl);
-		free(jsonString);
-		json_array_clear(jsonArray);
+		logMessage(__FILE__, __LINE__, "Failed to initialize CURL\n");
+		goto cleanup;
 	}
+
+	headers = curl_slist_append(headers, "Content-Type: application/json");
+	if (!headers)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to create headers\n");
+		goto cleanup;
+	}
+
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+
+	res = curl_easy_perform(curl);
+	if (res != CURLE_OK)
+	{
+		logMessage(__FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+		logMessage(__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
+		goto cleanup;
+	}
+	else
+	{
+		logMessage(__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
+	}
+
+cleanup:
+	if (headers)
+		curl_slist_free_all(headers);
+
+	if (curl)
+		curl_easy_cleanup(curl);
+
+	if (jsonString)
+		free(jsonString);
+
+	if (jsonArray)
+		json_array_clear(jsonArray);
 
 	curl_global_cleanup();
 }
@@ -990,10 +1001,8 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 		}
 	}
 }
-
 static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 {
-
 	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
 
 	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
@@ -1025,23 +1034,26 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 	char *host_start = strstr(payload, "Host:");
 	if (host_start != NULL)
 	{
+		// Increment the pointer to skip "Host: "
+		host_start += 6;
 		char *host_end = strchr(host_start, '\r');
 		if (host_end != NULL)
 		{
-			// Extract the HTTP host.
-			char *host = (char *)malloc(256 * sizeof(char)); // Assuming a reasonable max size for the host.
+			// Calculate host length
+			int host_length = host_end - host_start;
+
+			// Allocate memory for host
+			char *host = (char *)malloc((host_length + 1) * sizeof(char)); // +1 for null terminator
 			if (host == NULL)
 			{
 				return NULL;
 			}
-			int host_length = host_end - host_start - 6; // Subtract "Host: "
-			if (host_length > 0 && host_length < 256)
-			{
-				strncpy(host, host_start + 6, host_length);
-				host[host_length] = '\0'; // Null-terminate the string
-				return host;
-			}
-			free(host); // Free allocated memory in case of errors
+
+			// Copy host from payload
+			strncpy(host, host_start, host_length);
+			host[host_length] = '\0'; // Null-terminate the string
+
+			return host;
 		}
 	}
 
@@ -1336,81 +1348,94 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 	return false;
 }
 
-
-
-
 // Hash function
-unsigned int hash_function(const char *str) {
-    unsigned int hash = 5381;
-    int c;
+unsigned int hash_function(const char *str)
+{
+	unsigned int hash = 5381;
+	int c;
 
-    while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-    }
+	while ((c = *str++))
+	{
+		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+	}
 
-    return hash % CACHE_SIZE;
+	return hash % CACHE_SIZE;
 }
 
+static inline bool domain_checker(char *domain)
+{
+	if (domain == NULL)
+	{
+		return false;
+	}
 
-static inline bool domain_checker(char *domain) {
-    if (domain == NULL) {
-        return false;
-    }
+	// Use a hash table for faster lookup in the cache
+	unsigned int hash = hash_function(domain);
+	for (int i = 0; i < domainCacheSize; ++i)
+	{
+		if (strcmp(domain_cache[hash].domain, domain) == 0)
+		{
+			// Found in cache, update hit count and return true
+			if (hitCounter < MAX_LENGTH)
+			{
+				strncpy(hitCount[hitCounter], domain_cache[hash].id, sizeof(domain_cache[hash].id));
+				hitCounter++;
+			}
+			return true;
+		}
+		hash = (hash + 1) % CACHE_SIZE; // Linear probing for collision resolution
+	}
 
-    // Use a hash table for faster lookup in the cache
-    unsigned int hash = hash_function(domain);
-    for (int i = 0; i < domainCacheSize; ++i) {
-        if (strcmp(domain_cache[hash].domain, domain) == 0) {
-            // Found in cache, update hit count and return true
-            strncpy(hitCount[hitCounter], domain_cache[hash].id, sizeof(domain_cache[hash].id));
-            hitCounter++;
-            return true;
-        }
-        hash = (hash + 1) % CACHE_SIZE; // Linear probing for collision resolution
-    }
+	if (!db)
+	{
+		// Database is not initialized
+		return false;
+	}
 
-    if (!db) {
-        // Database is not initialized
-        return false;
-    }
+	// Prepare an SQL query to check if the domain exists in the database
+	char query[256];
+	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s' OR ip_address = '%s'", domain, domain);
 
-    // Prepare an SQL query to check if the domain exists in the database
-    char query[256];
-    snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s'", domain);
+	// Execute the SQL query
+	sqlite3_stmt *stmt;
+	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
 
-    // Execute the SQL query
-    sqlite3_stmt *stmt;
-    int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+	if (result != SQLITE_OK)
+	{
+		return false; // Error in preparing statement
+	}
 
-    if (result != SQLITE_OK) {
-        return false; // Error in preparing statement
-    }
+	// Execute the query and check if the domain exists in the database
+	char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
+	if (sqlite3_step(stmt) == SQLITE_ROW)
+	{
+		// Retrieve the ID from the result
+		strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
+	}
 
-    // Execute the query and check if the domain exists in the database
-    char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-        // Retrieve the ID from the result
-        strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
-    }
+	// Finalize the statement
+	sqlite3_finalize(stmt);
 
-    // Finalize the statement
-    sqlite3_finalize(stmt);
+	if (strlen(id) > 0)
+	{
+		// Add to cache
+		if (domainCacheSize < CACHE_SIZE)
+		{
+			strncpy(domain_cache[hash].domain, domain, sizeof(domain_cache[hash].domain));
+			strncpy(domain_cache[hash].id, id, sizeof(domain_cache[hash].id));
+			domainCacheSize++;
+		}
 
-    if (strlen(id) > 0) {
-        // Add to cache
-        if (domainCacheSize < CACHE_SIZE) {
-            strncpy(domain_cache[hash].domain, domain, sizeof(domain_cache[hash].domain));
-            strncpy(domain_cache[hash].id, id, sizeof(domain_cache[hash].id));
-            domainCacheSize++;
-        }
+		// Update hit count
+		if (hitCounter < MAX_LENGTH)
+		{
+			strncpy(hitCount[hitCounter], id, sizeof(id));
+			hitCounter++;
+		}
+		return true;
+	}
 
-        // Update hit count
-        strncpy(hitCount[hitCounter], id, sizeof(id));
-        hitCounter++;
-        return true;
-    }
-
-    return false;
+	return false;
 }
 
 static inline void
@@ -1476,7 +1501,7 @@ lcore_main_process(void)
 		/* Get a burst of RX packets from the first port of the pair. */
 		struct rte_mbuf *rx_bufs[BURST_SIZE];
 		const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
-	
+
 		for (uint16_t i = 0; i < rx_count; i++)
 		{
 			start = clock();
@@ -1485,7 +1510,7 @@ lcore_main_process(void)
 			// extractedName = extractDomainfromHTTPS(rx_pkt);
 			// printf("Extracted Name333333: %s\n", extractedName);
 
-			if (ip_checker(rx_pkt))
+			if (domain_checker(extractDomainfromHTTP(rx_pkt)))
 			{
 
 				// Create a copy of the received packet
@@ -1529,7 +1554,7 @@ lcore_main_process(void)
 					port_statistics[1].rstServer++;
 				}
 			}
-			
+
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
 			end = clock();
 		}
