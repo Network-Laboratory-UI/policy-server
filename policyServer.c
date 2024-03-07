@@ -59,11 +59,13 @@ static sqlite3 *db;
 clock_t start, end;
 double service_time = 0, avg_service_time = 0;
 int count_service_time = 0;
+int countFlag = 0;
 struct hit_counter
 {
 	char id[MAX_STRINGS];
 	uint64_t hit_count;
 };
+
 
 struct port_statistics_data
 {
@@ -794,6 +796,13 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 }
 static void send_hitcount_to_server(json_t *jsonArray)
 {
+	if(countFlag == 1){
+		logMessage(__FILE__, __LINE__, "Count Exceeds Threshold, Failed to Send\n");
+		if (jsonArray)
+		json_array_clear(jsonArray);
+		countFlag = 0;
+		return;
+	}
 	CURL *curl;
 	CURLcode res;
 	struct curl_slist *headers = NULL;
@@ -1380,7 +1389,11 @@ static inline bool domain_checker(char *domain)
 			{
 				strncpy(hitCount[hitCounter], domain_cache[hash].id, sizeof(domain_cache[hash].id));
 				hitCounter++;
+			}else{
+				countFlag = 1;
+				logMessage(__FILE__, __LINE__, "Failed to update Hitcount\n");
 			}
+			
 			return true;
 		}
 		hash = (hash + 1) % CACHE_SIZE; // Linear probing for collision resolution
@@ -1431,7 +1444,11 @@ static inline bool domain_checker(char *domain)
 		{
 			strncpy(hitCount[hitCounter], id, sizeof(id));
 			hitCounter++;
+		}else{
+			countFlag = 1;
+			logMessage(__FILE__, __LINE__, "Failed to update Hitcount\n");
 		}
+
 		return true;
 	}
 
