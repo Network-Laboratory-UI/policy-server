@@ -34,7 +34,6 @@
 #define CACHE_SIZE 1000
 #define RTE_TCP_RST 0x04
 #define MAX_STRINGS 64
-#define MAX_LENGTH 10000
 #define KAFKA_TOPIC "dpdk-blocked-list"
 #define KAFKA_BROKER "192.168.0.90:9092"
 
@@ -53,19 +52,10 @@ char PS_ID[200];
 char STAT_FILE[100];
 char STAT_FILE_EXT[100];
 char HOSTNAME[100];
-char hitCount[MAX_LENGTH][MAX_STRINGS];
-uint64_t hitCounter = 0;
 static sqlite3 *db;
 clock_t start, end;
 double service_time = 0, avg_service_time = 0;
 int count_service_time = 0;
-int countFlag = 0;
-struct hit_counter
-{
-	char id[MAX_STRINGS];
-	uint64_t hit_count;
-};
-
 
 struct port_statistics_data
 {
@@ -85,11 +75,12 @@ struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
 struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
 static volatile bool force_quit;
-static struct hit_counter db_hit_count[MAX_LENGTH];
-
+char domain_hit[CACHE_SIZE][MAX_STRINGS];
+char domain_hit_count = 0;
 typedef struct
 {
 	char domain[MAX_STRINGS];
+	uint64_t hit_count;
 	char id[MAX_STRINGS];
 } DomainCache;
 
@@ -136,6 +127,7 @@ void logMessage(const char *filename, int line, const char *format, ...)
 	// Close the file
 	fclose(file);
 }
+
 void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 {
 	if (rkmessage->err)
@@ -590,6 +582,18 @@ int load_config_file()
 	fclose(configFile);
 	return 0;
 }
+unsigned int hash_function(const char *str)
+{
+	unsigned int hash = 5381;
+	int c;
+
+	while ((c = *str++))
+	{
+		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+	}
+
+	return hash % CACHE_SIZE;
+}
 
 /*
  * The termination signal handler
@@ -615,19 +619,20 @@ size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 
 static void populate_json_hitcount(json_t *jsonArray)
 {
-	for (int i = 0; i < MAX_LENGTH; i++)
+	
+	for (int i = 0; i < domainCacheSize; ++i)
 	{
-		// Only create and append objects if hit_count > 0
-		if (db_hit_count[i].hit_count > 0)
+		unsigned int hash = hash_function(domain_hit[i]);
+		if (strcmp(domain_cache[hash].domain, domain_hit[i]) == 0)
 		{
-			// Create object for each entry with non-zero hit_count
 			json_t *jsonObject = json_object();
-			json_object_set(jsonObject, "id", json_string(db_hit_count[i].id));
-			json_object_set(jsonObject, "hit_count", json_integer(db_hit_count[i].hit_count));
-
+			json_object_set(jsonObject, "id", json_string(domain_cache[hash].id));
+			json_object_set(jsonObject, "hit_count", json_integer(domain_cache[hash].hit_count));
+			
 			// Append the JSON object to the JSON array
 			json_array_append(jsonArray, jsonObject);
 		}
+		hash = (hash + 1) % CACHE_SIZE; 
 	}
 }
 
@@ -796,13 +801,7 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 }
 static void send_hitcount_to_server(json_t *jsonArray)
 {
-	if(countFlag == 1){
-		logMessage(__FILE__, __LINE__, "Count Exceeds Threshold, Failed to Send\n");
-		if (jsonArray)
-		json_array_clear(jsonArray);
-		countFlag = 0;
-		return;
-	}
+	
 	CURL *curl;
 	CURLcode res;
 	struct curl_slist *headers = NULL;
@@ -1144,46 +1143,6 @@ static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 	}
 }
 
-void countStrings(char strings[MAX_LENGTH][MAX_STRINGS], int numStrings)
-{
-	// Assuming db_hit_count is declared globally or elsewhere in the code
-	// You need to know its size to memset it properly
-	// I'll assume MAX_HIT_COUNTS for illustration
-	memset(db_hit_count, 0, sizeof(db_hit_count));
-
-	for (int i = 0; i < numStrings; i++)
-	{
-		// Use a flag to track if the string is found
-		int found = 0;
-
-		// Iterate over the existing db_hit_count entries
-		for (int j = 0; j < MAX_LENGTH; j++)
-		{
-			// If the string is found, increment the hit_count
-			if (strcmp(strings[i], db_hit_count[j].id) == 0)
-			{
-				db_hit_count[j].hit_count++;
-				found = 1;
-				break;
-			}
-			// If an empty slot is found, add the string as a new entry
-			else if (db_hit_count[j].hit_count == 0)
-			{
-				strcpy(db_hit_count[j].id, strings[i]);
-				db_hit_count[j].hit_count = 1;
-				found = 1;
-				break;
-			}
-		}
-
-		// If the string wasn't found and no empty slots are available, stop
-		if (!found)
-		{
-			break;
-		}
-	}
-}
-
 static void sum_count(int *last_run_count, json_t *jsonArray)
 {
 	time_t rawtime;
@@ -1191,15 +1150,13 @@ static void sum_count(int *last_run_count, json_t *jsonArray)
 	char timestamp[20];
 	time(&rawtime);
 	timeinfo = localtime(&rawtime);
-	countStrings(hitCount, hitCounter);
-	memset(hitCount, 0, sizeof(hitCount));
-	hitCounter = 0;
+
+	
 	int current_min = timeinfo->tm_min;
 	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_count)
 	{
-
 		populate_json_hitcount(jsonArray);
-		memset(db_hit_count, 0, sizeof(db_hit_count));
+		
 
 		send_hitcount_to_server(jsonArray);
 
@@ -1289,87 +1246,75 @@ void delete_database()
 	logMessage(__FILE__, __LINE__, "Database file deleted successfully.\n");
 }
 
-static inline bool ip_checker(struct rte_mbuf *rx_pkt)
-{
-	if (!db)
-	{
-		// Database is not initialized
-		return false;
-	}
+// static inline bool ip_checker(struct rte_mbuf *rx_pkt)
+// {
+// 	if (!db)
+// 	{
+// 		// Database is not initialized
+// 		return false;
+// 	}
 
-	// Extract the destination IP address from the received packet (assuming IPv4)
-	struct rte_ipv4_hdr *ip_hdr = rte_pktmbuf_mtod_offset(rx_pkt, struct rte_ipv4_hdr *, sizeof(struct rte_ether_hdr));
-	char dest_ip_str[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &ip_hdr->dst_addr, dest_ip_str, INET_ADDRSTRLEN);
+// 	// Extract the destination IP address from the received packet (assuming IPv4)
+// 	struct rte_ipv4_hdr *ip_hdr = rte_pktmbuf_mtod_offset(rx_pkt, struct rte_ipv4_hdr *, sizeof(struct rte_ether_hdr));
+// 	char dest_ip_str[INET_ADDRSTRLEN];
+// 	inet_ntop(AF_INET, &ip_hdr->dst_addr, dest_ip_str, INET_ADDRSTRLEN);
 
-	// Check the cache first
-	for (int i = 0; i < ipCacheSize; ++i)
-	{
-		if (strcmp(ip_cache[i].ip_address, dest_ip_str) == 0)
-		{
-			// Found in cache, update hit count and return true
-			strncpy(hitCount[hitCounter], ip_cache[i].id, sizeof(ip_cache[i].id));
-			hitCounter++;
-			return true;
-		}
-	}
+// 	// Check the cache first
+// 	for (int i = 0; i < ipCacheSize; ++i)
+// 	{
+// 		if (strcmp(ip_cache[i].ip_address, dest_ip_str) == 0)
+// 		{
+// 			// Found in cache, update hit count and return true
+// 			strncpy(hitCount[hitCounter], ip_cache[i].id, sizeof(ip_cache[i].id));
+// 			hitCounter++;
+// 			return true;
+// 		}
+// 	}
 
-	// Prepare an SQL query to check if the IP address exists in the database
-	char query[256];
-	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE ip_address = '%s'", dest_ip_str);
+// 	// Prepare an SQL query to check if the IP address exists in the database
+// 	char query[256];
+// 	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE ip_address = '%s'", dest_ip_str);
 
-	// Execute the SQL query
-	sqlite3_stmt *stmt;
-	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
+// 	// Execute the SQL query
+// 	sqlite3_stmt *stmt;
+// 	int result = sqlite3_prepare_v2(db, query, -1, &stmt, NULL);
 
-	if (result != SQLITE_OK)
-	{
-		return false; // Error in preparing statement
-	}
+// 	if (result != SQLITE_OK)
+// 	{
+// 		return false; // Error in preparing statement
+// 	}
 
-	// Execute the query and check if the IP address exists in the database
-	char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
-	if (sqlite3_step(stmt) == SQLITE_ROW)
-	{
-		// Retrieve the ID from the result
-		strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
-	}
+// 	// Execute the query and check if the IP address exists in the database
+// 	char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
+// 	if (sqlite3_step(stmt) == SQLITE_ROW)
+// 	{
+// 		// Retrieve the ID from the result
+// 		strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
+// 	}
 
-	// Finalize the statement
-	sqlite3_finalize(stmt);
+// 	// Finalize the statement
+// 	sqlite3_finalize(stmt);
 
-	if (strlen(id) > 0)
-	{
-		// Add to cache
-		if (ipCacheSize < CACHE_SIZE)
-		{
-			strncpy(ip_cache[ipCacheSize].ip_address, dest_ip_str, sizeof(ip_cache[ipCacheSize].ip_address));
-			strncpy(ip_cache[ipCacheSize].id, id, sizeof(ip_cache[ipCacheSize].id));
-			ipCacheSize++;
-		}
+// 	if (strlen(id) > 0)
+// 	{
+// 		// Add to cache
+// 		if (ipCacheSize < CACHE_SIZE)
+// 		{
+// 			strncpy(ip_cache[ipCacheSize].ip_address, dest_ip_str, sizeof(ip_cache[ipCacheSize].ip_address));
+// 			strncpy(ip_cache[ipCacheSize].id, id, sizeof(ip_cache[ipCacheSize].id));
+// 			ipCacheSize++;
+// 		}
 
-		// Update hit count
-		strncpy(hitCount[hitCounter], id, sizeof(id));
-		hitCounter++;
-		return true;
-	}
+// 		// Update hit count
+// 		strncpy(hitCount[hitCounter], id, sizeof(id));
+// 		hitCounter++;
+// 		return true;
+// 	}
 
-	return false;
-}
+// 	return false;
+// }
 
 // Hash function
-unsigned int hash_function(const char *str)
-{
-	unsigned int hash = 5381;
-	int c;
-
-	while ((c = *str++))
-	{
-		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-	}
-
-	return hash % CACHE_SIZE;
-}
 
 static inline bool domain_checker(char *domain)
 {
@@ -1384,19 +1329,10 @@ static inline bool domain_checker(char *domain)
 	{
 		if (strcmp(domain_cache[hash].domain, domain) == 0)
 		{
-			// Found in cache, update hit count and return true
-			if (hitCounter < MAX_LENGTH)
-			{
-				strncpy(hitCount[hitCounter], domain_cache[hash].id, sizeof(domain_cache[hash].id));
-				hitCounter++;
-			}else{
-				countFlag = 1;
-				logMessage(__FILE__, __LINE__, "Failed to update Hitcount\n");
-			}
-			
+			domain_cache[hash].hit_count++;
 			return true;
 		}
-		hash = (hash + 1) % CACHE_SIZE; // Linear probing for collision resolution
+		hash = (hash + 1) % CACHE_SIZE; 
 	}
 
 	if (!db)
@@ -1436,17 +1372,10 @@ static inline bool domain_checker(char *domain)
 		{
 			strncpy(domain_cache[hash].domain, domain, sizeof(domain_cache[hash].domain));
 			strncpy(domain_cache[hash].id, id, sizeof(domain_cache[hash].id));
+			domain_cache[hash].hit_count = 1;
 			domainCacheSize++;
-		}
-
-		// Update hit count
-		if (hitCounter < MAX_LENGTH)
-		{
-			strncpy(hitCount[hitCounter], id, sizeof(id));
-			hitCounter++;
-		}else{
-			countFlag = 1;
-			logMessage(__FILE__, __LINE__, "Failed to update Hitcount\n");
+			strncpy(domain_hit[domain_hit_count], domain, sizeof(domain_hit[domain_hit_count]));
+			domain_hit_count++;
 		}
 
 		return true;
