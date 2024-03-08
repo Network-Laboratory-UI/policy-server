@@ -1156,7 +1156,6 @@ static void sum_count(int *last_run_count, json_t *jsonArray)
 	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_count)
 	{
 		populate_json_hitcount(jsonArray);
-		
 
 		send_hitcount_to_server(jsonArray);
 
@@ -1413,6 +1412,8 @@ lcore_stats_process(void)
 
 		// Send stats
 		send_stats(jsonStats, &last_run_send);
+
+		usleep(10000);
 	}
 }
 
