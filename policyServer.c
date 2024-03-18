@@ -31,38 +31,43 @@
 #include <rte_tcp.h>
 #include <rte_pdump.h>
 
-#define CACHE_SIZE 1000
+#define CACHE_SIZE 10000
 #define RTE_TCP_RST 0x04
+#define MAX_STRINGS 64
 #define KAFKA_TOPIC "dpdk-blocked-list"
 #define KAFKA_BROKER "192.168.0.90:9092"
 
 uint32_t MAX_PACKET_LEN;
+
 uint32_t RX_RING_SIZE;
 uint32_t TX_RING_SIZE;
 uint32_t NUM_MBUFS;
 uint32_t MBUF_CACHE_SIZE;
 uint32_t BURST_SIZE;
 uint32_t MAX_TCP_PAYLOAD_LEN;
-static uint32_t TIMER_PERIOD_STATS; 
-static uint32_t TIMER_PERIOD_SEND;	
+static uint32_t TIMER_PERIOD_STATS;
+static uint32_t TIMER_PERIOD_SEND;
 static const char *db_path = "/home/ubuntu/policy.db";
 char PS_ID[200];
 char STAT_FILE[100];
 char STAT_FILE_EXT[100];
 char HOSTNAME[100];
+char hitCount[CACHE_SIZE][MAX_STRINGS];
+uint64_t hitCounter = 0;
 static sqlite3 *db;
+clock_t start, end;
+double service_time = 0, avg_service_time = 0;
+int count_service_time = 0;
+int countFlag = 0;
+uint64_t rstServer = 0;
+uint64_t rstClient = 0;
+struct hit_counter
+{
+	char id[MAX_STRINGS];
+	uint64_t hit_count;
+};
 
 
-struct IP_Cache
-{
-	char ip[INET_ADDRSTRLEN];
-	bool exists;
-};
-struct DomainCacheEntry
-{
-	char domain[256];
-	bool exists;
-};
 struct port_statistics_data
 {
 	uint64_t tx_count;
@@ -81,8 +86,25 @@ struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
 struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
 static volatile bool force_quit;
-static struct IP_Cache ip_cache[CACHE_SIZE];
-static struct DomainCacheEntry domain_cache[CACHE_SIZE];
+static struct hit_counter db_hit_count[CACHE_SIZE];
+
+typedef struct
+{
+	char domain[MAX_STRINGS];
+	char id[MAX_STRINGS];
+} DomainCache;
+
+static DomainCache domain_cache[CACHE_SIZE];
+static int domainCacheSize = 0;
+
+typedef struct
+{
+	char ip_address[INET_ADDRSTRLEN];
+	char id[MAX_STRINGS];
+} IPCache;
+
+static IPCache ip_cache[CACHE_SIZE];
+static int ipCacheSize = 0;
 
 void logMessage(const char *filename, int line, const char *format, ...)
 {
@@ -202,14 +224,10 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	else if (strcmp(type_str, "update") == 0)
 	{
 		query_len = snprintf(sql_query, sizeof(sql_query), "UPDATE policies SET domain='%s', ip_address='%s' WHERE id='%s';", domain_str, ip_str, id_str);
-		memset(ip_cache, 0, sizeof(ip_cache));
-		memset(domain_cache, 0, sizeof(domain_cache));
 	}
 	else if (strcmp(type_str, "delete") == 0)
 	{
 		query_len = snprintf(sql_query, sizeof(sql_query), "DELETE FROM policies WHERE id='%s';", id_str);
-		memset(ip_cache, 0, sizeof(ip_cache));
-		memset(domain_cache, 0, sizeof(domain_cache));
 	}
 	else
 	{
@@ -224,7 +242,8 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	}
 
 	char *errmsg = NULL;
-	if (sqlite3_exec(db, sql_query, NULL, 0, &errmsg) != SQLITE_OK)
+	int sqlite_result = sqlite3_exec(db, sql_query, NULL, 0, &errmsg);
+	if (sqlite_result != SQLITE_OK)
 	{
 		logMessage(__FILE__, __LINE__, "SQL error: %s\n", errmsg);
 		sqlite3_free(errmsg);
@@ -235,7 +254,8 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	}
 
 cleanup:
-	json_decref(root);
+	if (root)
+		json_decref(root);
 }
 
 // Function to set up Kafka consumer
@@ -404,7 +424,10 @@ static FILE *open_file(const char *filename)
 	}
 	return f;
 }
-
+static void clear_stats(void)
+{
+	memset(port_statistics, 0, RTE_MAX_ETHPORTS * sizeof(struct port_statistics_data));
+}
 /*
  * The print statistics function
  * Print the statistics to the console
@@ -459,8 +482,8 @@ print_stats(int *last_run_print)
 				   port_statistics[portid].err_tx);
 		}
 		printf("\n=====================================================");
-
 		fflush(stdout);
+		clear_stats();
 		*last_run_print = timeinfo->tm_sec;
 	}
 }
@@ -474,11 +497,6 @@ static void print_stats_csv(FILE *f, char *timestamp)
 {
 	// Write data to the CSV file
 	fprintf(f, "%s,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", PS_ID, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[0].tx_count, port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, port_statistics[0].mbuf_err, port_statistics[1].rx_count, port_statistics[1].tx_count, port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, port_statistics[1].mbuf_err, timestamp, port_statistics[1].throughput);
-}
-
-static void clear_stats(void)
-{
-	memset(port_statistics, 0, RTE_MAX_ETHPORTS * sizeof(struct port_statistics_data));
 }
 
 /*
@@ -589,9 +607,33 @@ signal_handler(int signum)
 		force_quit = true;
 	}
 }
+size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+	size_t real_size = size * nmemb;
+	logMessage(__FILE__, __LINE__, "Response: %.*s \n", (int)real_size, (char *)contents);
+	return real_size;
+}
+
+static void populate_json_hitcount(json_t *jsonArray)
+{
+	for (int i = 0; i < CACHE_SIZE; i++)
+	{
+		// Only create and append objects if hit_count > 0
+		if (db_hit_count[i].hit_count > 0)
+		{
+			// Create object for each entry with non-zero hit_count
+			json_t *jsonObject = json_object();
+			json_object_set(jsonObject, "id", json_string(db_hit_count[i].id));
+			json_object_set(jsonObject, "hit_count", json_integer(db_hit_count[i].hit_count));
+
+			// Append the JSON object to the JSON array
+			json_array_append(jsonArray, jsonObject);
+		}
+	}
+}
 
 static void
-populate_json_array(json_t *jsonArray, char *timestamp)
+populate_json_stats(json_t *jsonArray, char *timestamp)
 {
 	// Create object for the statistics
 	json_t *jsonObject = json_object();
@@ -639,6 +681,8 @@ collect_stats()
 	port_statistics[1].err_rx = stats_1.ierrors;
 	port_statistics[1].err_tx = stats_1.oerrors;
 	port_statistics[1].mbuf_err = stats_1.rx_nombuf;
+	port_statistics[1].rstClient = rstClient;
+	port_statistics[1].rstServer = rstServer;
 	port_statistics[0].rx_count = stats_0.ipackets;
 	port_statistics[0].tx_count = stats_0.opackets;
 	port_statistics[0].rx_size = stats_0.ibytes;
@@ -651,6 +695,8 @@ collect_stats()
 	// Clear the statistics
 	rte_eth_stats_reset(0);
 	rte_eth_stats_reset(1);
+	rstClient = 0;
+	rstServer = 0;
 
 	// Calculate the throughput
 	port_statistics[1].throughput = port_statistics[1].rx_size / TIMER_PERIOD_STATS;
@@ -717,14 +763,19 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 
 		// convert the time to string
 		strftime(time_str, sizeof(time_str), format, tm_info);
-
+		if (count_service_time > 0)
+		{
+			avg_service_time = service_time / count_service_time;
+			service_time = 0;
+			count_service_time = 0;
+			logMessage(__FILE__, __LINE__, "AVG Service Time: %f\n", avg_service_time);
+		}
 		// print out the stats to csv
 		print_stats_csv(*f_stat, time_str);
-		populate_json_array(jsonArray, time_str);
+		populate_json_stats(jsonArray, time_str);
 		fflush(*f_stat);
 
 		// clear the stats
-		clear_stats();
 
 		if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_file)
 		{
@@ -747,6 +798,72 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 		// Set the last run time
 		*last_run_stat = current_sec;
 	}
+}
+static void send_hitcount_to_server(json_t *jsonArray)
+{
+	if(countFlag == 1){
+		logMessage(__FILE__, __LINE__, "Count Exceeds Threshold, Failed to Send\n");
+		if (jsonArray)
+		json_array_clear(jsonArray);
+		countFlag = 0;
+		return;
+	}
+	CURL *curl;
+	CURLcode res;
+	struct curl_slist *headers = NULL;
+	char *jsonString = json_dumps(jsonArray, 0);
+	char url[256];
+
+	sprintf(url, "%s/ps/blocked-list-count", HOSTNAME);
+
+	curl_global_init(CURL_GLOBAL_DEFAULT);
+	curl = curl_easy_init();
+
+	if (!curl)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to initialize CURL\n");
+		goto cleanup;
+	}
+
+	headers = curl_slist_append(headers, "Content-Type: application/json");
+	if (!headers)
+	{
+		logMessage(__FILE__, __LINE__, "Failed to create headers\n");
+		goto cleanup;
+	}
+
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonString);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+
+	res = curl_easy_perform(curl);
+	if (res != CURLE_OK)
+	{
+		logMessage(__FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+		logMessage(__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
+		goto cleanup;
+	}
+	else
+	{
+		logMessage(__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
+	}
+
+cleanup:
+	if (headers)
+		curl_slist_free_all(headers);
+
+	if (curl)
+		curl_easy_cleanup(curl);
+
+	if (jsonString)
+		free(jsonString);
+
+	if (jsonArray)
+		json_array_clear(jsonArray);
+
+	curl_global_cleanup();
 }
 
 static void
@@ -898,10 +1015,8 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 		}
 	}
 }
-
 static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 {
-
 	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
 
 	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
@@ -933,23 +1048,26 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 	char *host_start = strstr(payload, "Host:");
 	if (host_start != NULL)
 	{
+		// Increment the pointer to skip "Host: "
+		host_start += 6;
 		char *host_end = strchr(host_start, '\r');
 		if (host_end != NULL)
 		{
-			// Extract the HTTP host.
-			char *host = (char *)malloc(256 * sizeof(char)); // Assuming a reasonable max size for the host.
+			// Calculate host length
+			int host_length = host_end - host_start;
+
+			// Allocate memory for host
+			char *host = (char *)malloc((host_length + 1) * sizeof(char)); // +1 for null terminator
 			if (host == NULL)
 			{
 				return NULL;
 			}
-			int host_length = host_end - host_start - 6; // Subtract "Host: "
-			if (host_length > 0 && host_length < 256)
-			{
-				strncpy(host, host_start + 6, host_length);
-				host[host_length] = '\0'; // Null-terminate the string
-				return host;
-			}
-			free(host); // Free allocated memory in case of errors
+
+			// Copy host from payload
+			strncpy(host, host_start, host_length);
+			host[host_length] = '\0'; // Null-terminate the string
+
+			return host;
 		}
 	}
 
@@ -1028,6 +1146,69 @@ static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 		tcp_hdr->cksum = 0;
 		ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
 		tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
+	}
+}
+
+void countStrings(char strings[CACHE_SIZE][MAX_STRINGS], int numStrings)
+{
+	// Assuming db_hit_count is declared globally or elsewhere in the code
+	// You need to know its size to memset it properly
+	// I'll assume MAX_HIT_COUNTS for illustration
+	memset(db_hit_count, 0, sizeof(db_hit_count));
+
+	for (int i = 0; i < numStrings; i++)
+	{
+		// Use a flag to track if the string is found
+		int found = 0;
+
+		// Iterate over the existing db_hit_count entries
+		for (int j = 0; j < CACHE_SIZE; j++)
+		{
+			// If the string is found, increment the hit_count
+			if (strcmp(strings[i], db_hit_count[j].id) == 0)
+			{
+				db_hit_count[j].hit_count++;
+				found = 1;
+				break;
+			}
+			// If an empty slot is found, add the string as a new entry
+			else if (db_hit_count[j].hit_count == 0)
+			{
+				strcpy(db_hit_count[j].id, strings[i]);
+				db_hit_count[j].hit_count = 1;
+				found = 1;
+				break;
+			}
+		}
+
+		// If the string wasn't found and no empty slots are available, stop
+		if (!found)
+		{
+			break;
+		}
+	}
+}
+
+static void sum_count(int *last_run_count, json_t *jsonArray)
+{
+	time_t rawtime;
+	struct tm *timeinfo;
+	char timestamp[20];
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+	countStrings(hitCount, hitCounter);
+	memset(hitCount, 0, sizeof(hitCount));
+	hitCounter = 0;
+	int current_min = timeinfo->tm_min;
+	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_count)
+	{
+
+		populate_json_hitcount(jsonArray);
+		memset(db_hit_count, 0, sizeof(db_hit_count));
+
+		send_hitcount_to_server(jsonArray);
+
+		*last_run_count = current_min;
 	}
 }
 
@@ -1127,18 +1308,20 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 	inet_ntop(AF_INET, &ip_hdr->dst_addr, dest_ip_str, INET_ADDRSTRLEN);
 
 	// Check the cache first
-	for (int i = 0; i < CACHE_SIZE; i++)
+	for (int i = 0; i < ipCacheSize; ++i)
 	{
-		if (ip_cache[i].exists && strcmp(dest_ip_str, ip_cache[i].ip) == 0)
+		if (strcmp(ip_cache[i].ip_address, dest_ip_str) == 0)
 		{
-			return true; // IP found in cache
+			// Found in cache, update hit count and return true
+			strncpy(hitCount[hitCounter], ip_cache[i].id, sizeof(ip_cache[i].id));
+			hitCounter++;
+			return true;
 		}
 	}
 
-	// Prepare an SQL query to check if the destination IP exists in the database
+	// Prepare an SQL query to check if the IP address exists in the database
 	char query[256];
-	// printf("Dest IP: %s\n", dest_ip_str);
-	snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE ip_address = '%s'", dest_ip_str);
+	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE ip_address = '%s'", dest_ip_str);
 
 	// Execute the SQL query
 	sqlite3_stmt *stmt;
@@ -1146,38 +1329,51 @@ static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 
 	if (result != SQLITE_OK)
 	{
-		// Handle query preparation error
-		logMessage(__FILE__, __LINE__, "Error preparing SQL query: %s\n", sqlite3_errmsg(db));
-		return false;
+		return false; // Error in preparing statement
 	}
 
-	// Execute the query and check if the destination IP exists in the database
-	int count = 0;
+	// Execute the query and check if the IP address exists in the database
+	char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
 	if (sqlite3_step(stmt) == SQLITE_ROW)
 	{
-		count = sqlite3_column_int(stmt, 0);
+		// Retrieve the ID from the result
+		strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
 	}
 
 	// Finalize the statement
 	sqlite3_finalize(stmt);
 
-	// Cache the result
-	for (int i = 0; i < CACHE_SIZE; i++)
+	if (strlen(id) > 0)
 	{
-		if (!ip_cache[i].exists)
+		// Add to cache
+		if (ipCacheSize < CACHE_SIZE)
 		{
-			strncpy(ip_cache[i].ip, dest_ip_str, INET_ADDRSTRLEN);
-			ip_cache[i].exists = (count > 0);
-			break;
+			strncpy(ip_cache[ipCacheSize].ip_address, dest_ip_str, sizeof(ip_cache[ipCacheSize].ip_address));
+			strncpy(ip_cache[ipCacheSize].id, id, sizeof(ip_cache[ipCacheSize].id));
+			ipCacheSize++;
 		}
-	}
 
-	if (count > 0)
-	{
-		logMessage(__FILE__, __LINE__, "IP: %s has been blocked\n", dest_ip_str);
+		// Update hit count
+		strncpy(hitCount[hitCounter], id, sizeof(id));
+		hitCounter++;
 		return true;
 	}
+
 	return false;
+}
+
+// Hash function
+unsigned int hash_function(const char *str)
+{
+	unsigned int hash = 5381;
+	int c;
+
+	while ((c = *str++))
+	{
+		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+	}
+
+	return hash % CACHE_SIZE;
 }
 
 static inline bool domain_checker(char *domain)
@@ -1187,24 +1383,36 @@ static inline bool domain_checker(char *domain)
 		return false;
 	}
 
+	// Use a hash table for faster lookup in the cache
+	unsigned int hash = hash_function(domain);
+	for (int i = 0; i < domainCacheSize; ++i)
+	{
+		if (strcmp(domain_cache[hash].domain, domain) == 0)
+		{
+			// Found in cache, update hit count and return true
+			if (hitCounter < CACHE_SIZE)
+			{
+				strncpy(hitCount[hitCounter], domain_cache[hash].id, sizeof(domain_cache[hash].id));
+				hitCounter++;
+			}else{
+				countFlag = 1;
+				logMessage(__FILE__, __LINE__, "Failed to update Hitcount\n");
+			}
+			
+			return true;
+		}
+		hash = (hash + 1) % CACHE_SIZE; // Linear probing for collision resolution
+	}
+
 	if (!db)
 	{
 		// Database is not initialized
 		return false;
 	}
 
-	// Check the cache first
-	for (int i = 0; i < CACHE_SIZE; i++)
-	{
-		if (domain_cache[i].exists && strcmp(domain, domain_cache[i].domain) == 0)
-		{
-			return true; // Domain found in cache
-		}
-	}
-
 	// Prepare an SQL query to check if the domain exists in the database
 	char query[256];
-	snprintf(query, sizeof(query), "SELECT COUNT(*) FROM policies WHERE domain = '%s'", domain);
+	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s' OR ip_address = '%s'", domain, domain);
 
 	// Execute the SQL query
 	sqlite3_stmt *stmt;
@@ -1212,36 +1420,43 @@ static inline bool domain_checker(char *domain)
 
 	if (result != SQLITE_OK)
 	{
-		return false;
+		return false; // Error in preparing statement
 	}
 
 	// Execute the query and check if the domain exists in the database
-	int count = 0;
+	char id[MAX_STRINGS] = {0}; // Assuming ID is a string of 36 characters
 	if (sqlite3_step(stmt) == SQLITE_ROW)
 	{
-		count = sqlite3_column_int(stmt, 0);
+		// Retrieve the ID from the result
+		strncpy(id, (const char *)sqlite3_column_text(stmt, 0), sizeof(id));
 	}
 
 	// Finalize the statement
 	sqlite3_finalize(stmt);
 
-	// Cache the result
-	for (int i = 0; i < CACHE_SIZE; i++)
+	if (strlen(id) > 0)
 	{
-		if (!domain_cache[i].exists)
+		// Add to cache
+		if (domainCacheSize < CACHE_SIZE)
 		{
-			strncpy(domain_cache[i].domain, domain, sizeof(domain_cache[i].domain) - 1);
-			domain_cache[i].domain[sizeof(domain_cache[i].domain) - 1] = '\0'; // Ensure null-terminated
-			domain_cache[i].exists = (count > 0);
-			break;
+			strncpy(domain_cache[hash].domain, domain, sizeof(domain_cache[hash].domain));
+			strncpy(domain_cache[hash].id, id, sizeof(domain_cache[hash].id));
+			domainCacheSize++;
 		}
-	}
 
-	if (count > 0)
-	{
-		logMessage(__FILE__, __LINE__, "Domain: %s has been blocked\n", domain);
+		// Update hit count
+		if (hitCounter < CACHE_SIZE)
+		{
+			strncpy(hitCount[hitCounter], id, sizeof(id));
+			hitCounter++;
+		}else{
+			countFlag = 1;
+			logMessage(__FILE__, __LINE__, "Failed to update Hitcount\n");
+		}
+
 		return true;
 	}
+
 	return false;
 }
 
@@ -1252,26 +1467,28 @@ lcore_stats_process(void)
 	int last_run_stat = 0; // lastime statistics printed
 	int last_run_file = 0; // lastime statistics printed to file
 	int last_run_send = 0;
-	int last_run_print = 0;							 // lastime statistics sent to server
+	int last_run_print = 0;
+	int last_run_hitcount = 0;						 // lastime statistics sent to server
 	uint64_t start_tx_size_0 = 0, end_tx_size_0 = 0; // For throughput calculation
 	uint64_t start_rx_size_1 = 0, end_rx_size_1 = 0; // For throughput calculation
 	double throughput_0 = 0.0, throughput_1 = 0.0;	 // For throughput calculation
 	FILE *f_stat = NULL;							 // File pointer for statistics
-	json_t *jsonArray = json_array();				 // JSON array for statistics
+	json_t *jsonStats = json_array();
+	json_t *jsonHitcount = json_array(); // JSON array for statistics
 
 	logMessage(__FILE__, __LINE__, "Starting stats process in %d\n", rte_lcore_id());
 
 	while (!force_quit)
 	{
-		print_stats_file(&last_run_stat, &last_run_file, &f_stat, jsonArray);
+		sum_count(&last_run_hitcount, jsonHitcount);
 
-		// Print the statistics
+		print_stats_file(&last_run_stat, &last_run_file, &f_stat, jsonStats);
+
 		print_stats(&last_run_print);
-
 		// Send stats
-		send_stats(jsonArray, &last_run_send);
-
-		usleep(10000);
+		send_stats(jsonStats, &last_run_send);
+		// Print the statistics
+		
 	}
 }
 
@@ -1281,7 +1498,7 @@ lcore_main_process(void)
 	// initialization
 	char *extractedName;
 	uint16_t port;
-	uint64_t timer_tsc = 0;
+
 
 	/*
 	 * Check that the port is on the same NUMA node as the polling thread
@@ -1299,24 +1516,22 @@ lcore_main_process(void)
 	logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
 			   rte_lcore_id());
 
+	struct rte_mbuf *rx_bufs[BURST_SIZE];
 	// Main work of application loop
 	while (!force_quit)
 	{
 
 		/* Get a burst of RX packets from the first port of the pair. */
-		struct rte_mbuf *rx_bufs[BURST_SIZE];
+		
 		const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
-		// uint64_t start_tsc = rte_rdtsc();
+
 		for (uint16_t i = 0; i < rx_count; i++)
 		{
+			start = clock();
 			struct rte_mbuf *rx_pkt = rx_bufs[i];
-			// extractDomainfromHTTP(rx_pkt);
-			// extractedName = extractDomainfromHTTPS(rx_pkt);
-			// printf("Extracted Name333333: %s\n", extractedName);
 
 			if (domain_checker(extractDomainfromHTTP(rx_pkt)))
 			{
-
 				// Create a copy of the received packet
 				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_client == NULL)
@@ -1344,7 +1559,7 @@ lcore_main_process(void)
 				}
 				else
 				{
-					port_statistics[1].rstClient++;
+					rstClient++;
 				}
 
 				const uint16_t rst_server_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_server, 1);
@@ -1355,22 +1570,16 @@ lcore_main_process(void)
 				}
 				else
 				{
-					port_statistics[1].rstServer++;
+					rstServer++;
 				}
 			}
-			// uint64_t end_tsc = rte_rdtsc(); // Get end timestamp
-			// uint64_t processing_time = end_tsc - start_tsc;
-			// printf("Processing time: %" PRIu64 " cycles\n", processing_time);
-			rte_pktmbuf_free(rx_pkt); // Free the original packet
-		}
-	}
-}
 
-size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
-{
-	size_t real_size = size * nmemb;
-	logMessage(__FILE__, __LINE__, "Heartbeat Response: %.*s \n", (int)real_size, (char *)contents);
-	return real_size;
+			rte_pktmbuf_free(rx_pkt); // Free the original packet
+			end = clock();
+		}
+		service_time += (double)(end - start) / CLOCKS_PER_SEC;
+		count_service_time += 1;
+	}
 }
 
 static inline void
