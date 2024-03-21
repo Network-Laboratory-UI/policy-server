@@ -1493,93 +1493,185 @@ lcore_stats_process(void)
 }
 
 static inline void
-lcore_main_process(void)
+lcore_http_process(void)
 {
-	// initialization
-	char *extractedName;
-	uint16_t port;
+	// // initialization
+	// char *extractedName;
+	// uint16_t port;
 
 
-	/*
-	 * Check that the port is on the same NUMA node as the polling thread
-	 * for best performance.
-	 */
-	RTE_ETH_FOREACH_DEV(port)
-	if (rte_eth_dev_socket_id(port) >= 0 &&
-		rte_eth_dev_socket_id(port) !=
-			(int)rte_socket_id())
-		logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
-									   "polling thread.\n\tPerformance will "
-									   "not be optimal.\n",
-				   port);
+	// /*
+	//  * Check that the port is on the same NUMA node as the polling thread
+	//  * for best performance.
+	//  */
+	// RTE_ETH_FOREACH_DEV(port)
+	// if (rte_eth_dev_socket_id(port) >= 0 &&
+	// 	rte_eth_dev_socket_id(port) !=
+	// 		(int)rte_socket_id())
+	// 	logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
+	// 								   "polling thread.\n\tPerformance will "
+	// 								   "not be optimal.\n",
+	// 			   port);
 
-	logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
-			   rte_lcore_id());
+	// logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
+	// 		   rte_lcore_id());
 
-	struct rte_mbuf *rx_bufs[BURST_SIZE];
-	// Main work of application loop
-	while (!force_quit)
-	{
+	// struct rte_mbuf *rx_bufs[BURST_SIZE];
+	// // Main work of application loop
+	// while (!force_quit)
+	// {
 
-		/* Get a burst of RX packets from the first port of the pair. */
+	// 	/* Get a burst of RX packets from the first port of the pair. */
 		
-		const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
+	// 	const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
 
-		for (uint16_t i = 0; i < rx_count; i++)
-		{
-			start = clock();
-			struct rte_mbuf *rx_pkt = rx_bufs[i];
+	// 	for (uint16_t i = 0; i < rx_count; i++)
+	// 	{
+	// 		start = clock();
+	// 		struct rte_mbuf *rx_pkt = rx_bufs[i];
 
-			if (domain_checker(extractDomainfromHTTP(rx_pkt)))
-			{
-				// Create a copy of the received packet
-				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-				if (rst_pkt_client == NULL)
-				{
-					logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
-					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
-				}
-				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-				if (rst_pkt_server == NULL)
-				{
-					logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
-					rte_pktmbuf_free(rx_pkt); // Free the original packet
-				}
+	// 		if (domain_checker(extractDomainfromHTTP(rx_pkt)))
+	// 		{
+	// 			// Create a copy of the received packet
+	// 			struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+	// 			if (rst_pkt_client == NULL)
+	// 			{
+	// 				logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
+	// 				rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
+	// 			}
+	// 			struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+	// 			if (rst_pkt_server == NULL)
+	// 			{
+	// 				logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
+	// 				rte_pktmbuf_free(rx_pkt); // Free the original packet
+	// 			}
 
-				// Apply modifications to the packets
-				reset_tcp_client(rst_pkt_client);
-				reset_tcp_server(rst_pkt_server);
+	// 			// Apply modifications to the packets
+	// 			reset_tcp_client(rst_pkt_client);
+	// 			reset_tcp_server(rst_pkt_server);
 
-				// Transmit modified packets
-				const uint16_t rst_client_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_client, 1);
-				if (rst_client_tx_count == 0)
-				{
-					logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
-					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
-				}
-				else
-				{
-					rstClient++;
-				}
+	// 			// Transmit modified packets
+	// 			const uint16_t rst_client_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_client, 1);
+	// 			if (rst_client_tx_count == 0)
+	// 			{
+	// 				logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
+	// 				rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
+	// 			}
+	// 			else
+	// 			{
+	// 				rstClient++;
+	// 			}
 
-				const uint16_t rst_server_tx_count = rte_eth_tx_burst(1, 0, &rst_pkt_server, 1);
-				if (rst_server_tx_count == 0)
-				{
-					logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
-					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
-				}
-				else
-				{
-					rstServer++;
-				}
-			}
+	// 			const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
+	// 			if (rst_server_tx_count == 0)
+	// 			{
+	// 				logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
+	// 				rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
+	// 			}
+	// 			else
+	// 			{
+	// 				rstServer++;
+	// 			}
+	// 		}
 
-			rte_pktmbuf_free(rx_pkt); // Free the original packet
-			end = clock();
-		}
-		service_time += (double)(end - start) / CLOCKS_PER_SEC;
-		count_service_time += 1;
-	}
+	// 		rte_pktmbuf_free(rx_pkt); // Free the original packet
+	// 		end = clock();
+	// 	}
+	// 	service_time += (double)(end - start) / CLOCKS_PER_SEC;
+	// 	count_service_time += 1;
+	// }
+	printf("\nhttp");
+}
+
+static inline void
+lcore_https_process(void)
+{
+	// // initialization
+	// char *extractedName;
+	// uint16_t port;
+
+
+	// /*
+	//  * Check that the port is on the same NUMA node as the polling thread
+	//  * for best performance.
+	//  */
+	// RTE_ETH_FOREACH_DEV(port)
+	// if (rte_eth_dev_socket_id(port) >= 0 &&
+	// 	rte_eth_dev_socket_id(port) !=
+	// 		(int)rte_socket_id())
+	// 	logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
+	// 								   "polling thread.\n\tPerformance will "
+	// 								   "not be optimal.\n",
+	// 			   port);
+
+	// logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
+	// 		   rte_lcore_id());
+
+	// struct rte_mbuf *rx_bufs[BURST_SIZE];
+	// // Main work of application loop
+	// while (!force_quit)
+	// {
+
+	// 	/* Get a burst of RX packets from the first port of the pair. */
+		
+	// 	const uint16_t rx_count = rte_eth_rx_burst(1, 0, rx_bufs, BURST_SIZE);
+
+	// 	for (uint16_t i = 0; i < rx_count; i++)
+	// 	{
+	// 		start = clock();
+	// 		struct rte_mbuf *rx_pkt = rx_bufs[i];
+
+	// 		if (domain_checker(extractDomainfromHTTP(rx_pkt)))
+	// 		{
+	// 			// Create a copy of the received packet
+	// 			struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+	// 			if (rst_pkt_client == NULL)
+	// 			{
+	// 				logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
+	// 				rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
+	// 			}
+	// 			struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+	// 			if (rst_pkt_server == NULL)
+	// 			{
+	// 				logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
+	// 				rte_pktmbuf_free(rx_pkt); // Free the original packet
+	// 			}
+
+	// 			// Apply modifications to the packets
+	// 			reset_tcp_client(rst_pkt_client);
+	// 			reset_tcp_server(rst_pkt_server);
+
+	// 			// Transmit modified packets
+	// 			const uint16_t rst_client_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_client, 1);
+	// 			if (rst_client_tx_count == 0)
+	// 			{
+	// 				logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
+	// 				rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
+	// 			}
+	// 			else
+	// 			{
+	// 				rstClient++;
+	// 			}
+
+	// 			const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
+	// 			if (rst_server_tx_count == 0)
+	// 			{
+	// 				logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
+	// 				rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
+	// 			}
+	// 			else
+	// 			{
+	// 				rstServer++;
+	// 			}
+	// 		}
+
+	// 		rte_pktmbuf_free(rx_pkt); // Free the original packet
+	// 		end = clock();
+	// 	}
+	// 	service_time += (double)(end - start) / CLOCKS_PER_SEC;
+	// 	count_service_time += 1;
+	// }
+	printf("\nhttps");
 }
 
 static inline void
@@ -1646,7 +1738,7 @@ int main(int argc, char *argv[])
 	struct rte_mempool *mbuf_pool;
 	unsigned nb_ports;
 	uint16_t portid;
-	unsigned lcore_id, lcore_main = 0, lcore_stats = 0, lcore_db = 0;
+	unsigned lcore_id, lcore_http = 0, lcore_stats = 0, lcore_db = 0, lcore_https = 0;
 	init_database();
 
 	// log the starting of the application
@@ -1709,7 +1801,7 @@ int main(int argc, char *argv[])
 	}
 
 	// count the number of lcore
-	if (rte_lcore_count() < 4)
+	if (rte_lcore_count() < 5)
 	{
 		logMessage(__FILE__, __LINE__, "lcore must be more than equal 4\n");
 		rte_exit(EXIT_FAILURE, "lcore must be more than equal 4\n");
@@ -1717,16 +1809,23 @@ int main(int argc, char *argv[])
 
 	RTE_LCORE_FOREACH_WORKER(lcore_id)
 	{
-		if (lcore_id == (unsigned int)lcore_main ||
+		if (lcore_id == (unsigned int)lcore_https ||
+		lcore_id == (unsigned int)lcore_http ||
 			lcore_id == (unsigned int)lcore_stats ||
 			lcore_id == (unsigned int)lcore_db)
 		{
 			continue;
 		}
-		if (lcore_main == 0)
+		if (lcore_http == 0)
 		{
-			lcore_main = lcore_id;
-			logMessage(__FILE__, __LINE__, "Main on core %u\n", lcore_id);
+			lcore_http = lcore_id;
+			logMessage(__FILE__, __LINE__, "HTTP on core %u\n", lcore_id);
+			continue;
+		}
+		if (lcore_https == 0)
+		{
+			lcore_https = lcore_id;
+			logMessage(__FILE__, __LINE__, "HTTPS on core %u\n", lcore_id);
 			continue;
 		}
 		if (lcore_stats == 0)
@@ -1744,9 +1843,13 @@ int main(int argc, char *argv[])
 	}
 
 	// run the lcore main function
-	logMessage(__FILE__, __LINE__, "Run the lcore main function\n");
-	rte_eal_remote_launch((lcore_function_t *)lcore_main_process,
-						  NULL, lcore_main);
+	logMessage(__FILE__, __LINE__, "Run the lcore http function\n");
+	rte_eal_remote_launch((lcore_function_t *)lcore_http_process,
+						  NULL, lcore_http);
+
+						  logMessage(__FILE__, __LINE__, "Run the lcore https function\n");
+	rte_eal_remote_launch((lcore_function_t *)lcore_https_process,
+						  NULL, lcore_https);
 
 	// run the stats
 	logMessage(__FILE__, __LINE__, "Run the stats\n");
