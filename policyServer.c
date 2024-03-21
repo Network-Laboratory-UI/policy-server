@@ -85,6 +85,7 @@ struct port_statistics_data
 struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
 struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
+struct rte_eth_stats stats_2;
 static volatile bool force_quit;
 static struct hit_counter db_hit_count[CACHE_SIZE];
 
@@ -456,7 +457,7 @@ print_stats(int *last_run_print)
 			   TIMER_PERIOD_STATS, TIMER_PERIOD_SEND);
 		printf("\nPort statistics ====================================");
 
-		for (portid = 0; portid < 2; portid++)
+		for (portid = 0; portid < 3; portid++)
 		{
 			printf("\nStatistics for port %u ------------------------------"
 				   "\nPackets sent count: %18" PRIu64
@@ -490,13 +491,20 @@ print_stats(int *last_run_print)
 
 static void print_stats_csv_header(FILE *f)
 {
-	fprintf(f, "ps_id,rstClient,rstServer,rx_0_count,tx_0_count,rx_0_size,tx_0_size,rx_0_drop,rx_0_error,tx_0_error,rx_0_mbuf,rx_1_count,tx_1_count,rx_1_size,tx_1_size,rx_1_drop,rx_1_error,tx_1_error,rx_1_mbuf,time,throughput\n"); // Header row
+	fprintf(f, "ps_id,rstClient,rstServer,rx_0_count,tx_0_count,rx_0_size,tx_0_size,rx_0_drop,rx_0_error,tx_0_error,rx_0_mbuf,rx_1_count,tx_1_count,rx_1_size,tx_1_size,rx_1_drop,rx_1_error,tx_1_error,rx_1_mbuf,rx_2_count,tx_2_count,rx_2_size,tx_2_size,rx_2_drop,rx_2_error,tx_2_error,rx_2_mbuf,time,throughput\n"); // Header row
 }
 
 static void print_stats_csv(FILE *f, char *timestamp)
 {
 	// Write data to the CSV file
-	fprintf(f, "%s,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", PS_ID, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[0].tx_count, port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, port_statistics[0].mbuf_err, port_statistics[1].rx_count, port_statistics[1].tx_count, port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, port_statistics[1].mbuf_err, timestamp, port_statistics[1].throughput);
+	fprintf(f, "%s,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", 
+	PS_ID, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[0].tx_count, 
+	port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, 
+	port_statistics[0].mbuf_err, port_statistics[1].rx_count, port_statistics[1].tx_count, 
+	port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, 
+	port_statistics[1].mbuf_err,port_statistics[2].rx_count, port_statistics[2].tx_count, port_statistics[2].rx_size, 
+	port_statistics[2].tx_size, port_statistics[2].dropped, port_statistics[2].err_rx, port_statistics[2].err_tx, port_statistics[2].mbuf_err, 
+	timestamp, port_statistics[2].throughput);
 }
 
 /*
@@ -640,6 +648,7 @@ populate_json_stats(json_t *jsonArray, char *timestamp)
 
 	// Populate the JSON object
 	json_object_set(jsonObject, "ps_id", json_string(PS_ID));
+
 	json_object_set(jsonObject, "rx_0_count", json_integer(port_statistics[0].rx_count));
 	json_object_set(jsonObject, "tx_0_count", json_integer(port_statistics[0].tx_count));
 	json_object_set(jsonObject, "rx_0_size", json_integer(port_statistics[0].rx_size));
@@ -648,8 +657,7 @@ populate_json_stats(json_t *jsonArray, char *timestamp)
 	json_object_set(jsonObject, "rx_0_error", json_integer(port_statistics[0].err_rx));
 	json_object_set(jsonObject, "tx_0_error", json_integer(port_statistics[0].err_tx));
 	json_object_set(jsonObject, "rx_0_mbuf", json_integer(port_statistics[0].mbuf_err));
-	json_object_set(jsonObject, "rstClient", json_integer(port_statistics[1].rstClient));
-	json_object_set(jsonObject, "rstServer", json_integer(port_statistics[1].rstServer));
+
 	json_object_set(jsonObject, "rx_1_count", json_integer(port_statistics[1].rx_count));
 	json_object_set(jsonObject, "tx_1_count", json_integer(port_statistics[1].tx_count));
 	json_object_set(jsonObject, "rx_1_size", json_integer(port_statistics[1].rx_size));
@@ -658,8 +666,19 @@ populate_json_stats(json_t *jsonArray, char *timestamp)
 	json_object_set(jsonObject, "rx_1_error", json_integer(port_statistics[1].err_rx));
 	json_object_set(jsonObject, "tx_1_error", json_integer(port_statistics[1].err_tx));
 	json_object_set(jsonObject, "rx_1_mbuf", json_integer(port_statistics[1].mbuf_err));
+
+	json_object_set(jsonObject, "rstClient", json_integer(port_statistics[2].rstClient));
+	json_object_set(jsonObject, "rstServer", json_integer(port_statistics[2].rstServer));
+	json_object_set(jsonObject, "rx_2_count", json_integer(port_statistics[2].rx_count));
+	json_object_set(jsonObject, "tx_2_count", json_integer(port_statistics[2].tx_count));
+	json_object_set(jsonObject, "rx_2_size", json_integer(port_statistics[2].rx_size));
+	json_object_set(jsonObject, "tx_2_size", json_integer(port_statistics[2].tx_size));
+	json_object_set(jsonObject, "rx_2_drop", json_integer(port_statistics[2].dropped));
+	json_object_set(jsonObject, "rx_2_error", json_integer(port_statistics[2].err_rx));
+	json_object_set(jsonObject, "tx_2_error", json_integer(port_statistics[2].err_tx));
+	json_object_set(jsonObject, "rx_2_mbuf", json_integer(port_statistics[2].mbuf_err));
 	json_object_set(jsonObject, "time", json_string(timestamp));
-	json_object_set(jsonObject, "throughput", json_integer(port_statistics[0].throughput));
+	json_object_set(jsonObject, "throughput", json_integer(port_statistics[2].throughput));
 
 	// Append the JSON object to the JSON array
 	json_array_append(jsonArray, jsonObject);
@@ -671,18 +690,20 @@ collect_stats()
 	// Get the statistics
 	rte_eth_stats_get(1, &stats_1);
 	rte_eth_stats_get(0, &stats_0);
+	rte_eth_stats_get(2, &stats_2);
 
 	// Update the statistics
-	port_statistics[1].rx_count = stats_1.ipackets;
-	port_statistics[1].tx_count = stats_1.opackets;
-	port_statistics[1].rx_size = stats_1.ibytes;
-	port_statistics[1].tx_size = stats_1.obytes;
-	port_statistics[1].dropped = stats_1.imissed;
-	port_statistics[1].err_rx = stats_1.ierrors;
-	port_statistics[1].err_tx = stats_1.oerrors;
-	port_statistics[1].mbuf_err = stats_1.rx_nombuf;
-	port_statistics[1].rstClient = rstClient;
-	port_statistics[1].rstServer = rstServer;
+	port_statistics[2].rx_count = stats_2.ipackets;
+	port_statistics[2].tx_count = stats_2.opackets;
+	port_statistics[2].rx_size = stats_2.ibytes;
+	port_statistics[2].tx_size = stats_2.obytes;
+	port_statistics[2].dropped = stats_2.imissed;
+	port_statistics[2].err_rx = stats_2.ierrors;
+	port_statistics[2].err_tx = stats_2.oerrors;
+	port_statistics[2].mbuf_err = stats_2.rx_nombuf;
+	port_statistics[2].rstClient = rstClient;
+	port_statistics[2].rstServer = rstServer;
+
 	port_statistics[0].rx_count = stats_0.ipackets;
 	port_statistics[0].tx_count = stats_0.opackets;
 	port_statistics[0].rx_size = stats_0.ibytes;
@@ -692,15 +713,26 @@ collect_stats()
 	port_statistics[0].err_tx = stats_0.oerrors;
 	port_statistics[0].mbuf_err = stats_0.rx_nombuf;
 
+	port_statistics[1].rx_count = stats_1.ipackets;
+	port_statistics[1].tx_count = stats_1.opackets;
+	port_statistics[1].rx_size = stats_1.ibytes;
+	port_statistics[1].tx_size = stats_1.obytes;
+	port_statistics[1].dropped = stats_1.imissed;
+	port_statistics[1].err_rx = stats_1.ierrors;
+	port_statistics[1].err_tx = stats_1.oerrors;
+	port_statistics[1].mbuf_err = stats_1.rx_nombuf;
+
 	// Clear the statistics
 	rte_eth_stats_reset(0);
 	rte_eth_stats_reset(1);
+	rte_eth_stats_reset(2);
 	rstClient = 0;
 	rstServer = 0;
 
 	// Calculate the throughput
 	port_statistics[1].throughput = port_statistics[1].rx_size / TIMER_PERIOD_STATS;
-	port_statistics[0].throughput = port_statistics[0].tx_size / TIMER_PERIOD_STATS;
+	port_statistics[0].throughput = port_statistics[0].rx_size / TIMER_PERIOD_STATS;
+	port_statistics[2].throughput = port_statistics[2].tx_size / TIMER_PERIOD_STATS;
 }
 /*
  * The print statistics file function
@@ -872,7 +904,7 @@ send_stats_to_server(json_t *jsonArray)
 	CURL *curl;
 	CURLcode res;
 	struct curl_slist *headers = curl_slist_append(headers, "Content-Type: application/json");
-	;
+	
 	char *jsonString = json_dumps(jsonArray, 0);
 	char url[256];
 
@@ -1469,9 +1501,7 @@ lcore_stats_process(void)
 	int last_run_send = 0;
 	int last_run_print = 0;
 	int last_run_hitcount = 0;						 // lastime statistics sent to server
-	uint64_t start_tx_size_0 = 0, end_tx_size_0 = 0; // For throughput calculation
-	uint64_t start_rx_size_1 = 0, end_rx_size_1 = 0; // For throughput calculation
-	double throughput_0 = 0.0, throughput_1 = 0.0;	 // For throughput calculation
+		
 	FILE *f_stat = NULL;							 // File pointer for statistics
 	json_t *jsonStats = json_array();
 	json_t *jsonHitcount = json_array(); // JSON array for statistics
@@ -1495,183 +1525,178 @@ lcore_stats_process(void)
 static inline void
 lcore_http_process(void)
 {
-	// // initialization
-	// char *extractedName;
-	// uint16_t port;
+	// initialization
+	char *extractedName;
+	uint16_t port;
 
 
-	// /*
-	//  * Check that the port is on the same NUMA node as the polling thread
-	//  * for best performance.
-	//  */
-	// RTE_ETH_FOREACH_DEV(port)
-	// if (rte_eth_dev_socket_id(port) >= 0 &&
-	// 	rte_eth_dev_socket_id(port) !=
-	// 		(int)rte_socket_id())
-	// 	logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
-	// 								   "polling thread.\n\tPerformance will "
-	// 								   "not be optimal.\n",
-	// 			   port);
+	/*
+	 * Check that the port is on the same NUMA node as the polling thread
+	 * for best performance.
+	 */
+	RTE_ETH_FOREACH_DEV(port)
+	if (rte_eth_dev_socket_id(port) >= 0 &&
+		rte_eth_dev_socket_id(port) !=
+			(int)rte_socket_id())
+		logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
+									   "polling thread.\n\tPerformance will "
+									   "not be optimal.\n",
+				   port);
 
-	// logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
-	// 		   rte_lcore_id());
+	logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
+			   rte_lcore_id());
 
-	// struct rte_mbuf *rx_bufs[BURST_SIZE];
-	// // Main work of application loop
-	// while (!force_quit)
-	// {
+	struct rte_mbuf *rx_bufs[BURST_SIZE];
+	// Main work of application loop
+	while (!force_quit)
+	{
 
-	// 	/* Get a burst of RX packets from the first port of the pair. */
+		/* Get a burst of RX packets from the first port of the pair. */
 		
-	// 	const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
+		const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
 
-	// 	for (uint16_t i = 0; i < rx_count; i++)
-	// 	{
-	// 		start = clock();
-	// 		struct rte_mbuf *rx_pkt = rx_bufs[i];
+		for (uint16_t i = 0; i < rx_count; i++)
+		{
+			start = clock();
+			struct rte_mbuf *rx_pkt = rx_bufs[i];
 
-	// 		if (domain_checker(extractDomainfromHTTP(rx_pkt)))
-	// 		{
-	// 			// Create a copy of the received packet
-	// 			struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-	// 			if (rst_pkt_client == NULL)
-	// 			{
-	// 				logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
-	// 				rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
-	// 			}
-	// 			struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-	// 			if (rst_pkt_server == NULL)
-	// 			{
-	// 				logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
-	// 				rte_pktmbuf_free(rx_pkt); // Free the original packet
-	// 			}
+			if (domain_checker(extractDomainfromHTTP(rx_pkt)))
+			{
+				// Create a copy of the received packet
+				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+				if (rst_pkt_client == NULL)
+				{
+					logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
+					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
+				}
+				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+				if (rst_pkt_server == NULL)
+				{
+					logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
+					rte_pktmbuf_free(rx_pkt); // Free the original packet
+				}
 
-	// 			// Apply modifications to the packets
-	// 			reset_tcp_client(rst_pkt_client);
-	// 			reset_tcp_server(rst_pkt_server);
+				// Apply modifications to the packets
+				reset_tcp_client(rst_pkt_client);
+				reset_tcp_server(rst_pkt_server);
 
-	// 			// Transmit modified packets
-	// 			const uint16_t rst_client_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_client, 1);
-	// 			if (rst_client_tx_count == 0)
-	// 			{
-	// 				logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
-	// 				rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
-	// 			}
-	// 			else
-	// 			{
-	// 				rstClient++;
-	// 			}
+				// Transmit modified packets
+				const uint16_t rst_client_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_client, 1);
+				if (rst_client_tx_count == 0)
+				{
+					logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
+					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
+				}
+				else
+				{
+					rstClient++;
+				}
 
-	// 			const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
-	// 			if (rst_server_tx_count == 0)
-	// 			{
-	// 				logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
-	// 				rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
-	// 			}
-	// 			else
-	// 			{
-	// 				rstServer++;
-	// 			}
-	// 		}
+				const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
+				if (rst_server_tx_count == 0)
+				{
+					logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
+					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
+				}
+				else
+				{
+					rstServer++;
+				}
+			}
 
-	// 		rte_pktmbuf_free(rx_pkt); // Free the original packet
-	// 		end = clock();
-	// 	}
-	// 	service_time += (double)(end - start) / CLOCKS_PER_SEC;
-	// 	count_service_time += 1;
-	// }
-	printf("\nhttp");
+			rte_pktmbuf_free(rx_pkt); // Free the original packet
+			end = clock();
+		}
+		service_time += (double)(end - start) / CLOCKS_PER_SEC;
+		count_service_time += 1;
+	}
 }
 
 static inline void
 lcore_https_process(void)
 {
-	// // initialization
-	// char *extractedName;
-	// uint16_t port;
+	// initialization
+	char *extractedName;
+	uint16_t port;
 
 
-	// /*
-	//  * Check that the port is on the same NUMA node as the polling thread
-	//  * for best performance.
-	//  */
-	// RTE_ETH_FOREACH_DEV(port)
-	// if (rte_eth_dev_socket_id(port) >= 0 &&
-	// 	rte_eth_dev_socket_id(port) !=
-	// 		(int)rte_socket_id())
-	// 	logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
-	// 								   "polling thread.\n\tPerformance will "
-	// 								   "not be optimal.\n",
-	// 			   port);
+	/*
+	 * Check that the port is on the same NUMA node as the polling thread
+	 * for best performance.
+	 */
+	RTE_ETH_FOREACH_DEV(port)
+	if (rte_eth_dev_socket_id(port) >= 0 &&
+		rte_eth_dev_socket_id(port) !=
+			(int)rte_socket_id())
+		logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
+									   "polling thread.\n\tPerformance will "
+									   "not be optimal.\n",
+				   port);
 
-	// logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
-	// 		   rte_lcore_id());
+	logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
+			   rte_lcore_id());
 
-	// struct rte_mbuf *rx_bufs[BURST_SIZE];
-	// // Main work of application loop
-	// while (!force_quit)
-	// {
+	struct rte_mbuf *rx_bufs[BURST_SIZE];
+	// Main work of application loop
+	while (!force_quit)
+	{
 
-	// 	/* Get a burst of RX packets from the first port of the pair. */
+		/* Get a burst of RX packets from the first port of the pair. */
 		
-	// 	const uint16_t rx_count = rte_eth_rx_burst(1, 0, rx_bufs, BURST_SIZE);
+		const uint16_t rx_count = rte_eth_rx_burst(1, 0, rx_bufs, BURST_SIZE);
 
-	// 	for (uint16_t i = 0; i < rx_count; i++)
-	// 	{
-	// 		start = clock();
-	// 		struct rte_mbuf *rx_pkt = rx_bufs[i];
+		for (uint16_t i = 0; i < rx_count; i++)
+		{
+			struct rte_mbuf *rx_pkt = rx_bufs[i];
 
-	// 		if (domain_checker(extractDomainfromHTTP(rx_pkt)))
-	// 		{
-	// 			// Create a copy of the received packet
-	// 			struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-	// 			if (rst_pkt_client == NULL)
-	// 			{
-	// 				logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
-	// 				rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
-	// 			}
-	// 			struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
-	// 			if (rst_pkt_server == NULL)
-	// 			{
-	// 				logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
-	// 				rte_pktmbuf_free(rx_pkt); // Free the original packet
-	// 			}
+			if (domain_checker(extractDomainfromHTTPS(rx_pkt)))
+			{
+				// Create a copy of the received packet
+				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+				if (rst_pkt_client == NULL)
+				{
+					logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
+					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
+				}
+				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+				if (rst_pkt_server == NULL)
+				{
+					logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
+					rte_pktmbuf_free(rx_pkt); // Free the original packet
+				}
 
-	// 			// Apply modifications to the packets
-	// 			reset_tcp_client(rst_pkt_client);
-	// 			reset_tcp_server(rst_pkt_server);
+				// Apply modifications to the packets
+				reset_tcp_client(rst_pkt_client);
+				reset_tcp_server(rst_pkt_server);
 
-	// 			// Transmit modified packets
-	// 			const uint16_t rst_client_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_client, 1);
-	// 			if (rst_client_tx_count == 0)
-	// 			{
-	// 				logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
-	// 				rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
-	// 			}
-	// 			else
-	// 			{
-	// 				rstClient++;
-	// 			}
+				// Transmit modified packets
+				const uint16_t rst_client_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_client, 1);
+				if (rst_client_tx_count == 0)
+				{
+					logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
+					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
+				}
+				else
+				{
+					rstClient++;
+				}
 
-	// 			const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
-	// 			if (rst_server_tx_count == 0)
-	// 			{
-	// 				logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
-	// 				rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
-	// 			}
-	// 			else
-	// 			{
-	// 				rstServer++;
-	// 			}
-	// 		}
+				const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
+				if (rst_server_tx_count == 0)
+				{
+					logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
+					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
+				}
+				else
+				{
+					rstServer++;
+				}
+			}
 
-	// 		rte_pktmbuf_free(rx_pkt); // Free the original packet
-	// 		end = clock();
-	// 	}
-	// 	service_time += (double)(end - start) / CLOCKS_PER_SEC;
-	// 	count_service_time += 1;
-	// }
-	printf("\nhttps");
+			rte_pktmbuf_free(rx_pkt); // Free the original packet
+			end = clock();
+		}
+	}
 }
 
 static inline void
@@ -1773,12 +1798,12 @@ int main(int argc, char *argv[])
 	logMessage(__FILE__, __LINE__, "Clean the statistics data\n");
 
 	// count the number of ports to send and receive
-	nb_ports = rte_eth_dev_count_avail();
-	if (nb_ports < 2 || (nb_ports & 1))
-	{
-		logMessage(__FILE__, __LINE__, "Error: number of ports must be even\n");
-		rte_exit(EXIT_FAILURE, "Error: number of ports must be even\n");
-	}
+nb_ports = rte_eth_dev_count_avail();
+if (nb_ports != 3)
+{
+    logMessage(__FILE__, __LINE__, "Error: number of ports must be 3\n");
+    rte_exit(EXIT_FAILURE, "Error: number of ports must be 3\n");
+}
 
 	// allocates the mempool to hold the mbufs
 	mbuf_pool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports,
