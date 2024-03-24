@@ -795,13 +795,7 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 
 		// convert the time to string
 		strftime(time_str, sizeof(time_str), format, tm_info);
-		if (count_service_time > 0)
-		{
-			avg_service_time = service_time / count_service_time;
-			service_time = 0;
-			count_service_time = 0;
-			logMessage(__FILE__, __LINE__, "AVG Service Time: %f\n", avg_service_time);
-		}
+		
 		// print out the stats to csv
 		print_stats_csv(*f_stat, time_str);
 		populate_json_stats(jsonArray, time_str);
@@ -1558,7 +1552,6 @@ lcore_http_process(void)
 
 		for (uint16_t i = 0; i < rx_count; i++)
 		{
-			start = clock();
 			struct rte_mbuf *rx_pkt = rx_bufs[i];
 
 			if (domain_checker(extractDomainfromHTTP(rx_pkt)))
@@ -1606,10 +1599,9 @@ lcore_http_process(void)
 			}
 
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
-			end = clock();
+			
 		}
-		service_time += (double)(end - start) / CLOCKS_PER_SEC;
-		count_service_time += 1;
+		
 	}
 }
 
@@ -1695,7 +1687,7 @@ lcore_https_process(void)
 			}
 
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
-			end = clock();
+			
 		}
 	}
 }

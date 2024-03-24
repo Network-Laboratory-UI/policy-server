@@ -1,0 +1,96 @@
+[2024-03-24 10:11:16] [policyServer.c:1293] - 'policies' table already exists.
+[2024-03-24 10:11:16] [policyServer.c:1767] - Starting the application
+[2024-03-24 10:11:16] [policyServer.c:535] - MAX_PACKET_LEN: 1500
+[2024-03-24 10:11:16] [policyServer.c:540] - RX_RING_SIZE: 1024
+[2024-03-24 10:11:16] [policyServer.c:545] - TX_RING_SIZE: 1024
+[2024-03-24 10:11:16] [policyServer.c:550] - NUM_MBUFS: 8191
+[2024-03-24 10:11:16] [policyServer.c:555] - MBUF_CACHE_SIZE: 250
+[2024-03-24 10:11:16] [policyServer.c:560] - BURST_SIZE: 32
+[2024-03-24 10:11:16] [policyServer.c:565] - MAX_TCP_PAYLOAD_LEN: 1024
+[2024-03-24 10:11:16] [policyServer.c:590] - PS ID: cd413e3c-3139-4a51-a592-c2a31c29dd4c
+[2024-03-24 10:11:16] [policyServer.c:595] - HOSTNAME: http://192.168.0.70:3000
+[2024-03-24 10:11:16] [policyServer.c:570] - STAT_FILE: stats/stats
+[2024-03-24 10:11:16] [policyServer.c:575] - STAT_FILE_EXT: .csv
+[2024-03-24 10:11:16] [policyServer.c:580] - TIMER_PERIOD_STATS: 1
+[2024-03-24 10:11:16] [policyServer.c:585] - TIMER_PERIOD_SEND: 1
+[2024-03-24 10:11:16] [policyServer.c:1775] - Load config done
+[2024-03-24 10:11:16] [policyServer.c:1795] - Clean the statistics data
+[2024-03-24 10:11:16] [policyServer.c:1815] - Create mbuf pool done
+[2024-03-24 10:11:16] [policyServer.c:407] - Port 0 MAC: ae 50 82 be 45 ac
+[2024-03-24 10:11:16] [policyServer.c:407] - Port 1 MAC: 0a 73 10 a5 ce 50
+[2024-03-24 10:11:16] [policyServer.c:407] - Port 2 MAC: a6 0f cf 49 1b c2
+[2024-03-24 10:11:16] [policyServer.c:1844] - HTTP on core 1
+[2024-03-24 10:11:16] [policyServer.c:1850] - HTTPS on core 2
+[2024-03-24 10:11:16] [policyServer.c:1856] - Stats on core 3
+[2024-03-24 10:11:16] [policyServer.c:1862] - DB on core 4
+[2024-03-24 10:11:16] [policyServer.c:1868] - Run the lcore http function
+[2024-03-24 10:11:16] [policyServer.c:1872] - Run the lcore https function
+[2024-03-24 10:11:16] [policyServer.c:1543] - 
+Core 1 forwarding packets. [Ctrl+C to quit]
+[2024-03-24 10:11:16] [policyServer.c:1877] - Run the stats
+[2024-03-24 10:11:45] [policyServer.c:1293] - 'policies' table already exists.
+[2024-03-24 10:11:45] [policyServer.c:1767] - Starting the application
+[2024-03-24 10:11:45] [policyServer.c:535] - MAX_PACKET_LEN: 1500
+[2024-03-24 10:11:45] [policyServer.c:540] - RX_RING_SIZE: 1024
+[2024-03-24 10:11:45] [policyServer.c:545] - TX_RING_SIZE: 1024
+[2024-03-24 10:11:45] [policyServer.c:550] - NUM_MBUFS: 8191
+[2024-03-24 10:11:45] [policyServer.c:555] - MBUF_CACHE_SIZE: 250
+[2024-03-24 10:11:45] [policyServer.c:560] - BURST_SIZE: 32
+[2024-03-24 10:11:45] [policyServer.c:565] - MAX_TCP_PAYLOAD_LEN: 1024
+[2024-03-24 10:11:45] [policyServer.c:590] - PS ID: cd413e3c-3139-4a51-a592-c2a31c29dd4c
+[2024-03-24 10:11:45] [policyServer.c:595] - HOSTNAME: http://192.168.0.70:3000
+[2024-03-24 10:11:45] [policyServer.c:570] - STAT_FILE: stats/stats
+[2024-03-24 10:11:45] [policyServer.c:575] - STAT_FILE_EXT: .csv
+[2024-03-24 10:11:45] [policyServer.c:580] - TIMER_PERIOD_STATS: 1
+[2024-03-24 10:11:45] [policyServer.c:585] - TIMER_PERIOD_SEND: 1
+[2024-03-24 10:11:45] [policyServer.c:1775] - Load config done
+[2024-03-24 10:11:45] [policyServer.c:1795] - Clean the statistics data
+[2024-03-24 10:11:45] [policyServer.c:1815] - Create mbuf pool done
+[2024-03-24 10:11:45] [policyServer.c:407] - Port 0 MAC: ae 50 82 be 45 ac
+[2024-03-24 10:11:45] [policyServer.c:407] - Port 1 MAC: 0a 73 10 a5 ce 50
+[2024-03-24 10:11:45] [policyServer.c:407] - Port 2 MAC: a6 0f cf 49 1b c2
+[2024-03-24 10:11:45] [policyServer.c:1844] - HTTP on core 1
+[2024-03-24 10:11:45] [policyServer.c:1850] - HTTPS on core 2
+[2024-03-24 10:11:45] [policyServer.c:1856] - Stats on core 3
+[2024-03-24 10:11:45] [policyServer.c:1862] - DB on core 4
+[2024-03-24 10:11:45] [policyServer.c:1868] - Run the lcore http function
+[2024-03-24 10:11:45] [policyServer.c:1872] - Run the lcore https function
+[2024-03-24 10:11:45] [policyServer.c:1543] - 
+Core 1 forwarding packets. [Ctrl+C to quit]
+[2024-03-24 10:11:45] [policyServer.c:1877] - Run the stats
+[2024-03-24 10:11:45] [policyServer.c:1881] - Run the Kafka Broker
+[2024-03-24 10:11:45] [policyServer.c:1886] - Run the heartbeat
+[2024-03-24 10:11:45] [policyServer.c:1505] - Starting stats process in 3
+[2024-03-24 10:13:20] [policyServer.c:1293] - 'policies' table already exists.
+[2024-03-24 10:13:20] [policyServer.c:1768] - Starting the application
+[2024-03-24 10:13:20] [policyServer.c:535] - MAX_PACKET_LEN: 1500
+[2024-03-24 10:13:20] [policyServer.c:540] - RX_RING_SIZE: 1024
+[2024-03-24 10:13:20] [policyServer.c:545] - TX_RING_SIZE: 1024
+[2024-03-24 10:13:20] [policyServer.c:550] - NUM_MBUFS: 8191
+[2024-03-24 10:13:20] [policyServer.c:555] - MBUF_CACHE_SIZE: 250
+[2024-03-24 10:13:20] [policyServer.c:560] - BURST_SIZE: 32
+[2024-03-24 10:13:20] [policyServer.c:565] - MAX_TCP_PAYLOAD_LEN: 1024
+[2024-03-24 10:13:20] [policyServer.c:590] - PS ID: cd413e3c-3139-4a51-a592-c2a31c29dd4c
+[2024-03-24 10:13:20] [policyServer.c:595] - HOSTNAME: http://192.168.0.70:3000
+[2024-03-24 10:13:20] [policyServer.c:570] - STAT_FILE: stats/stats
+[2024-03-24 10:13:20] [policyServer.c:575] - STAT_FILE_EXT: .csv
+[2024-03-24 10:13:20] [policyServer.c:580] - TIMER_PERIOD_STATS: 1
+[2024-03-24 10:13:20] [policyServer.c:585] - TIMER_PERIOD_SEND: 1
+[2024-03-24 10:13:20] [policyServer.c:1776] - Load config done
+[2024-03-24 10:13:20] [policyServer.c:1796] - Clean the statistics data
+[2024-03-24 10:13:20] [policyServer.c:1816] - Create mbuf pool done
+[2024-03-24 10:13:20] [policyServer.c:407] - Port 0 MAC: ae 50 82 be 45 ac
+[2024-03-24 10:13:20] [policyServer.c:407] - Port 1 MAC: 0a 73 10 a5 ce 50
+[2024-03-24 10:13:20] [policyServer.c:407] - Port 2 MAC: a6 0f cf 49 1b c2
+[2024-03-24 10:13:20] [policyServer.c:1845] - HTTP on core 1
+[2024-03-24 10:13:20] [policyServer.c:1851] - HTTPS on core 2
+[2024-03-24 10:13:20] [policyServer.c:1857] - Stats on core 3
+[2024-03-24 10:13:20] [policyServer.c:1863] - DB on core 4
+[2024-03-24 10:13:20] [policyServer.c:1869] - Run the lcore http function
+[2024-03-24 10:13:20] [policyServer.c:1873] - Run the lcore https function
+[2024-03-24 10:13:20] [policyServer.c:1543] - 
+Core 1 forwarding packets. [Ctrl+C to quit]
+[2024-03-24 10:13:20] [policyServer.c:1878] - Run the stats
+[2024-03-24 10:13:20] [policyServer.c:1882] - Run the Kafka Broker
+[2024-03-24 10:13:20] [policyServer.c:1505] - Starting stats process in 3
+[2024-03-24 10:13:20] [policyServer.c:1887] - Run the heartbeat
