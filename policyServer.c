@@ -491,7 +491,7 @@ print_stats(int *last_run_print)
 
 static void print_stats_csv_header(FILE *f)
 {
-	fprintf(f, "ps_id,rstClient,rstServer,rx_0_count,tx_0_count,rx_0_size,tx_0_size,rx_0_drop,rx_0_error,tx_0_error,rx_0_mbuf,rx_1_count,tx_1_count,rx_1_size,tx_1_size,rx_1_drop,rx_1_error,tx_1_error,rx_1_mbuf,rx_2_count,tx_2_count,rx_2_size,tx_2_size,rx_2_drop,rx_2_error,tx_2_error,rx_2_mbuf,time,throughput\n"); // Header row
+	fprintf(f, "ps_id,rstClient,rstServer,rx_i_http_count,tx_i_http_count,rx_i_http_size,tx_i_http_size,rx_i_http_drop,rx_i_http_error,tx_i_http_error,rx_i_http_mbuf,rx_i_tls_count,tx_i_tls_count,rx_i_tls_size,tx_i_tls_size,rx_i_tls_drop,rx_i_tls_error,tx_i_tls_error,rx_i_tls_mbuf,rx_o_count,tx_o_count,rx_o_size,tx_o_size,rx_o_drop,rx_o_error,tx_o_error,rx_o_mbuf,time,throughput\n"); // Header row
 }
 
 static void print_stats_csv(FILE *f, char *timestamp)
@@ -649,34 +649,34 @@ populate_json_stats(json_t *jsonArray, char *timestamp)
 	// Populate the JSON object
 	json_object_set(jsonObject, "ps_id", json_string(PS_ID));
 
-	json_object_set(jsonObject, "rx_0_count", json_integer(port_statistics[0].rx_count));
-	json_object_set(jsonObject, "tx_0_count", json_integer(port_statistics[0].tx_count));
-	json_object_set(jsonObject, "rx_0_size", json_integer(port_statistics[0].rx_size));
-	json_object_set(jsonObject, "tx_0_size", json_integer(port_statistics[0].tx_size));
-	json_object_set(jsonObject, "rx_0_drop", json_integer(port_statistics[0].dropped));
-	json_object_set(jsonObject, "rx_0_error", json_integer(port_statistics[0].err_rx));
-	json_object_set(jsonObject, "tx_0_error", json_integer(port_statistics[0].err_tx));
-	json_object_set(jsonObject, "rx_0_mbuf", json_integer(port_statistics[0].mbuf_err));
+	json_object_set(jsonObject, "rx_i_http_count", json_integer(port_statistics[0].rx_count));
+	json_object_set(jsonObject, "tx_i_http_count", json_integer(port_statistics[0].tx_count));
+	json_object_set(jsonObject, "rx_i_http_size", json_integer(port_statistics[0].rx_size));
+	json_object_set(jsonObject, "tx_i_http_size", json_integer(port_statistics[0].tx_size));
+	json_object_set(jsonObject, "rx_i_http_drop", json_integer(port_statistics[0].dropped));
+	json_object_set(jsonObject, "rx_i_http_error", json_integer(port_statistics[0].err_rx));
+	json_object_set(jsonObject, "tx_i_http_error", json_integer(port_statistics[0].err_tx));
+	json_object_set(jsonObject, "rx_i_http_mbuf", json_integer(port_statistics[0].mbuf_err));
 
-	json_object_set(jsonObject, "rx_1_count", json_integer(port_statistics[1].rx_count));
-	json_object_set(jsonObject, "tx_1_count", json_integer(port_statistics[1].tx_count));
-	json_object_set(jsonObject, "rx_1_size", json_integer(port_statistics[1].rx_size));
-	json_object_set(jsonObject, "tx_1_size", json_integer(port_statistics[1].tx_size));
-	json_object_set(jsonObject, "rx_1_drop", json_integer(port_statistics[1].dropped));
-	json_object_set(jsonObject, "rx_1_error", json_integer(port_statistics[1].err_rx));
-	json_object_set(jsonObject, "tx_1_error", json_integer(port_statistics[1].err_tx));
-	json_object_set(jsonObject, "rx_1_mbuf", json_integer(port_statistics[1].mbuf_err));
+	json_object_set(jsonObject, "rx_i_tls_count", json_integer(port_statistics[1].rx_count));
+	json_object_set(jsonObject, "tx_i_tls_count", json_integer(port_statistics[1].tx_count));
+	json_object_set(jsonObject, "rx_i_tls_size", json_integer(port_statistics[1].rx_size));
+	json_object_set(jsonObject, "tx_i_tls_size", json_integer(port_statistics[1].tx_size));
+	json_object_set(jsonObject, "rx_i_tls_drop", json_integer(port_statistics[1].dropped));
+	json_object_set(jsonObject, "rx_i_tls_error", json_integer(port_statistics[1].err_rx));
+	json_object_set(jsonObject, "tx_i_tls_error", json_integer(port_statistics[1].err_tx));
+	json_object_set(jsonObject, "rx_i_tls_mbuf", json_integer(port_statistics[1].mbuf_err));
 
 	json_object_set(jsonObject, "rstClient", json_integer(port_statistics[2].rstClient));
 	json_object_set(jsonObject, "rstServer", json_integer(port_statistics[2].rstServer));
-	json_object_set(jsonObject, "rx_2_count", json_integer(port_statistics[2].rx_count));
-	json_object_set(jsonObject, "tx_2_count", json_integer(port_statistics[2].tx_count));
-	json_object_set(jsonObject, "rx_2_size", json_integer(port_statistics[2].rx_size));
-	json_object_set(jsonObject, "tx_2_size", json_integer(port_statistics[2].tx_size));
-	json_object_set(jsonObject, "rx_2_drop", json_integer(port_statistics[2].dropped));
-	json_object_set(jsonObject, "rx_2_error", json_integer(port_statistics[2].err_rx));
-	json_object_set(jsonObject, "tx_2_error", json_integer(port_statistics[2].err_tx));
-	json_object_set(jsonObject, "rx_2_mbuf", json_integer(port_statistics[2].mbuf_err));
+	json_object_set(jsonObject, "rx_o_count", json_integer(port_statistics[2].rx_count));
+	json_object_set(jsonObject, "tx_o_count", json_integer(port_statistics[2].tx_count));
+	json_object_set(jsonObject, "rx_o_size", json_integer(port_statistics[2].rx_size));
+	json_object_set(jsonObject, "tx_o_size", json_integer(port_statistics[2].tx_size));
+	json_object_set(jsonObject, "rx_o_drop", json_integer(port_statistics[2].dropped));
+	json_object_set(jsonObject, "rx_o_error", json_integer(port_statistics[2].err_rx));
+	json_object_set(jsonObject, "tx_o_error", json_integer(port_statistics[2].err_tx));
+	json_object_set(jsonObject, "rx_o_mbuf", json_integer(port_statistics[2].mbuf_err));
 	json_object_set(jsonObject, "time", json_string(timestamp));
 	json_object_set(jsonObject, "throughput", json_integer(port_statistics[2].throughput));
 
@@ -1228,13 +1228,14 @@ static void sum_count(int *last_run_count, json_t *jsonArray)
 	char timestamp[20];
 	time(&rawtime);
 	timeinfo = localtime(&rawtime);
+
 	countStrings(hitCount, hitCounter);
 	memset(hitCount, 0, sizeof(hitCount));
 	hitCounter = 0;
+
 	int current_min = timeinfo->tm_min;
 	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_count)
 	{
-
 		populate_json_hitcount(jsonArray);
 		memset(db_hit_count, 0, sizeof(db_hit_count));
 
