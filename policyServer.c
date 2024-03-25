@@ -59,8 +59,10 @@ clock_t start, end;
 double service_time = 0, avg_service_time = 0;
 int count_service_time = 0;
 int countFlag = 0;
-uint64_t rstServer = 0;
-uint64_t rstClient = 0;
+uint64_t rstServer_http = 0;
+uint64_t rstClient_http = 0;
+uint64_t rstServer_tls = 0;
+uint64_t rstClient_tls = 0;
 struct hit_counter
 {
 	char id[MAX_STRINGS];
@@ -86,6 +88,7 @@ struct port_statistics_data port_statistics[RTE_MAX_ETHPORTS];
 struct rte_eth_stats stats_0;
 struct rte_eth_stats stats_1;
 struct rte_eth_stats stats_2;
+struct rte_eth_stats stats_3;
 static volatile bool force_quit;
 static struct hit_counter db_hit_count[CACHE_SIZE];
 
@@ -457,7 +460,7 @@ print_stats(int *last_run_print)
 			   TIMER_PERIOD_STATS, TIMER_PERIOD_SEND);
 		printf("\nPort statistics ====================================");
 
-		for (portid = 0; portid < 3; portid++)
+		for (portid = 0; portid < 4; portid++)
 		{
 			printf("\nStatistics for port %u ------------------------------"
 				   "\nPackets sent count: %18" PRIu64
@@ -491,20 +494,18 @@ print_stats(int *last_run_print)
 
 static void print_stats_csv_header(FILE *f)
 {
-	fprintf(f, "ps_id,rstClient,rstServer,rx_i_http_count,tx_i_http_count,rx_i_http_size,tx_i_http_size,rx_i_http_drop,rx_i_http_error,tx_i_http_error,rx_i_http_mbuf,rx_i_tls_count,tx_i_tls_count,rx_i_tls_size,tx_i_tls_size,rx_i_tls_drop,rx_i_tls_error,tx_i_tls_error,rx_i_tls_mbuf,rx_o_count,tx_o_count,rx_o_size,tx_o_size,rx_o_drop,rx_o_error,tx_o_error,rx_o_mbuf,time,throughput\n"); // Header row
+	fprintf(f, "ps_id,rstClient_http,rstServer_http,rstClient_tls,rstServer_tls,rx_i_http_count,tx_i_http_count,rx_i_http_size,tx_i_http_size,rx_i_http_drop,rx_i_http_error,tx_i_http_error,rx_i_http_mbuf,rx_i_tls_count,tx_i_tls_count,rx_i_tls_size,tx_i_tls_size,rx_i_tls_drop,rx_i_tls_error,tx_i_tls_error,rx_i_tls_mbuf,rx_o_http_count,tx_o_http_count,rx_o_http_size,tx_o_http_size,rx_o_http_drop,rx_o_http_error,tx_o_http_error,rx_o_http_mbuf,rx_o_tls_count,tx_o_tls_count,rx_o_tls_size,tx_o_tls_size,rx_o_tls_drop,rx_o_tls_error,tx_o_tls_error,rx_o_tls_mbuf,time,throughput_i_http, throughput_i_tls, throughput_o_http,throughput_o_tls\n"); // Header row
 }
 
 static void print_stats_csv(FILE *f, char *timestamp)
 {
 	// Write data to the CSV file
-	fprintf(f, "%s,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld\n", 
-	PS_ID, port_statistics[1].rstClient, port_statistics[1].rstServer, port_statistics[0].rx_count, port_statistics[0].tx_count, 
-	port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, 
-	port_statistics[0].mbuf_err, port_statistics[1].rx_count, port_statistics[1].tx_count, 
-	port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, 
-	port_statistics[1].mbuf_err,port_statistics[2].rx_count, port_statistics[2].tx_count, port_statistics[2].rx_size, 
-	port_statistics[2].tx_size, port_statistics[2].dropped, port_statistics[2].err_rx, port_statistics[2].err_tx, port_statistics[2].mbuf_err, 
-	timestamp, port_statistics[2].throughput);
+	fprintf(f, "%s,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%s,%ld,%ld,%ld,%ld\n", PS_ID, port_statistics[2].rstClient, port_statistics[2].rstServer, port_statistics[3].rstClient, port_statistics[3].rstServer,
+			port_statistics[0].rx_count, port_statistics[0].tx_count, port_statistics[0].rx_size, port_statistics[0].tx_size, port_statistics[0].dropped, port_statistics[0].err_rx, port_statistics[0].err_tx, port_statistics[0].mbuf_err,
+			port_statistics[1].rx_count, port_statistics[1].tx_count, port_statistics[1].rx_size, port_statistics[1].tx_size, port_statistics[1].dropped, port_statistics[1].err_rx, port_statistics[1].err_tx, port_statistics[1].mbuf_err,
+			port_statistics[2].rx_count, port_statistics[2].tx_count, port_statistics[2].rx_size, port_statistics[2].tx_size, port_statistics[2].dropped, port_statistics[2].err_rx, port_statistics[2].err_tx, port_statistics[2].mbuf_err,
+			port_statistics[3].rx_count, port_statistics[3].tx_count, port_statistics[3].rx_size, port_statistics[3].tx_size, port_statistics[3].dropped, port_statistics[3].err_rx, port_statistics[3].err_tx, port_statistics[3].mbuf_err,
+			timestamp, port_statistics[0].throughput, port_statistics[1].throughput, port_statistics[2].throughput, port_statistics[3].throughput);
 }
 
 /*
@@ -633,11 +634,11 @@ static void populate_json_hitcount(json_t *jsonArray)
 			json_t *jsonObject = json_object();
 			json_object_set(jsonObject, "id", json_string(db_hit_count[i].id));
 			json_object_set(jsonObject, "hit_count", json_integer(db_hit_count[i].hit_count));
-
 			// Append the JSON object to the JSON array
 			json_array_append(jsonArray, jsonObject);
 		}
 	}
+	memset(db_hit_count, 0, sizeof(db_hit_count));
 }
 
 static void
@@ -667,18 +668,33 @@ populate_json_stats(json_t *jsonArray, char *timestamp)
 	json_object_set(jsonObject, "tx_i_tls_error", json_integer(port_statistics[1].err_tx));
 	json_object_set(jsonObject, "rx_i_tls_mbuf", json_integer(port_statistics[1].mbuf_err));
 
-	json_object_set(jsonObject, "rstClient", json_integer(port_statistics[2].rstClient));
-	json_object_set(jsonObject, "rstServer", json_integer(port_statistics[2].rstServer));
-	json_object_set(jsonObject, "rx_o_count", json_integer(port_statistics[2].rx_count));
-	json_object_set(jsonObject, "tx_o_count", json_integer(port_statistics[2].tx_count));
-	json_object_set(jsonObject, "rx_o_size", json_integer(port_statistics[2].rx_size));
-	json_object_set(jsonObject, "tx_o_size", json_integer(port_statistics[2].tx_size));
-	json_object_set(jsonObject, "rx_o_drop", json_integer(port_statistics[2].dropped));
-	json_object_set(jsonObject, "rx_o_error", json_integer(port_statistics[2].err_rx));
-	json_object_set(jsonObject, "tx_o_error", json_integer(port_statistics[2].err_tx));
-	json_object_set(jsonObject, "rx_o_mbuf", json_integer(port_statistics[2].mbuf_err));
+	json_object_set(jsonObject, "rstClient_http", json_integer(port_statistics[2].rstClient));
+	json_object_set(jsonObject, "rstServer_http", json_integer(port_statistics[2].rstServer));
+	json_object_set(jsonObject, "rx_o_http_count", json_integer(port_statistics[2].rx_count));
+	json_object_set(jsonObject, "tx_o_http_count", json_integer(port_statistics[2].tx_count));
+	json_object_set(jsonObject, "rx_o_http_size", json_integer(port_statistics[2].rx_size));
+	json_object_set(jsonObject, "tx_o_http_size", json_integer(port_statistics[2].tx_size));
+	json_object_set(jsonObject, "rx_o_http_drop", json_integer(port_statistics[2].dropped));
+	json_object_set(jsonObject, "rx_o_http_error", json_integer(port_statistics[2].err_rx));
+	json_object_set(jsonObject, "tx_o_http_error", json_integer(port_statistics[2].err_tx));
+	json_object_set(jsonObject, "rx_o_http_mbuf", json_integer(port_statistics[2].mbuf_err));
+
+	json_object_set(jsonObject, "rstClient_tls", json_integer(port_statistics[3].rstClient));
+	json_object_set(jsonObject, "rstServer_tls", json_integer(port_statistics[3].rstServer));
+	json_object_set(jsonObject, "rx_o_tls_count", json_integer(port_statistics[3].rx_count));
+	json_object_set(jsonObject, "tx_o_tls_count", json_integer(port_statistics[3].tx_count));
+	json_object_set(jsonObject, "rx_o_tls_size", json_integer(port_statistics[3].rx_size));
+	json_object_set(jsonObject, "tx_o_tls_size", json_integer(port_statistics[3].tx_size));
+	json_object_set(jsonObject, "rx_o_tls_drop", json_integer(port_statistics[3].dropped));
+	json_object_set(jsonObject, "rx_o_tls_error", json_integer(port_statistics[3].err_rx));
+	json_object_set(jsonObject, "tx_o_tls_error", json_integer(port_statistics[3].err_tx));
+	json_object_set(jsonObject, "rx_o_tls_mbuf", json_integer(port_statistics[3].mbuf_err));
+
 	json_object_set(jsonObject, "time", json_string(timestamp));
-	json_object_set(jsonObject, "throughput", json_integer(port_statistics[2].throughput));
+	json_object_set(jsonObject, "throughput_i_http", json_integer(port_statistics[0].throughput));
+	json_object_set(jsonObject, "throughput_i_tls", json_integer(port_statistics[1].throughput));
+	json_object_set(jsonObject, "throughput_o_http", json_integer(port_statistics[2].throughput));
+	json_object_set(jsonObject, "throughput_o_tls", json_integer(port_statistics[3].throughput));
 
 	// Append the JSON object to the JSON array
 	json_array_append(jsonArray, jsonObject);
@@ -691,8 +707,20 @@ collect_stats()
 	rte_eth_stats_get(1, &stats_1);
 	rte_eth_stats_get(0, &stats_0);
 	rte_eth_stats_get(2, &stats_2);
+	rte_eth_stats_get(3, &stats_3);
 
 	// Update the statistics
+	port_statistics[3].rx_count = stats_3.ipackets;
+	port_statistics[3].tx_count = stats_3.opackets;
+	port_statistics[3].rx_size = stats_3.ibytes;
+	port_statistics[3].tx_size = stats_3.obytes;
+	port_statistics[3].dropped = stats_3.imissed;
+	port_statistics[3].err_rx = stats_3.ierrors;
+	port_statistics[3].err_tx = stats_3.oerrors;
+	port_statistics[3].mbuf_err = stats_3.rx_nombuf;
+	port_statistics[3].rstClient = rstClient_tls;
+	port_statistics[3].rstServer = rstServer_tls;
+
 	port_statistics[2].rx_count = stats_2.ipackets;
 	port_statistics[2].tx_count = stats_2.opackets;
 	port_statistics[2].rx_size = stats_2.ibytes;
@@ -701,8 +729,8 @@ collect_stats()
 	port_statistics[2].err_rx = stats_2.ierrors;
 	port_statistics[2].err_tx = stats_2.oerrors;
 	port_statistics[2].mbuf_err = stats_2.rx_nombuf;
-	port_statistics[2].rstClient = rstClient;
-	port_statistics[2].rstServer = rstServer;
+	port_statistics[2].rstClient = rstClient_http;
+	port_statistics[2].rstServer = rstServer_http;
 
 	port_statistics[0].rx_count = stats_0.ipackets;
 	port_statistics[0].tx_count = stats_0.opackets;
@@ -726,13 +754,17 @@ collect_stats()
 	rte_eth_stats_reset(0);
 	rte_eth_stats_reset(1);
 	rte_eth_stats_reset(2);
-	rstClient = 0;
-	rstServer = 0;
+	rte_eth_stats_reset(3);
+	rstClient_http = 0;
+	rstServer_http = 0;
+	rstClient_tls = 0;
+	rstServer_tls = 0;
 
 	// Calculate the throughput
 	port_statistics[1].throughput = port_statistics[1].rx_size / TIMER_PERIOD_STATS;
 	port_statistics[0].throughput = port_statistics[0].rx_size / TIMER_PERIOD_STATS;
 	port_statistics[2].throughput = port_statistics[2].tx_size / TIMER_PERIOD_STATS;
+	port_statistics[3].throughput = port_statistics[3].tx_size / TIMER_PERIOD_STATS;
 }
 /*
  * The print statistics file function
@@ -839,6 +871,7 @@ static void send_hitcount_to_server(json_t *jsonArray)
 	struct curl_slist *headers = NULL;
 	char *jsonString = json_dumps(jsonArray, 0);
 	char url[256];
+	logMessage(__FILE__, __LINE__, "jsonString %s\n", jsonString);
 
 	sprintf(url, "%s/ps/blocked-list-count", HOSTNAME);
 
@@ -1102,85 +1135,89 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 
 static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
 {
-	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
+    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
 
-	// Check if it's an IPv4 packet
-	if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-	{
-		struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-		struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
+    // Check if it's an IPv4 packet
+    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
+    {
+        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+        struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
 
-		// Swap MAC addresses
-		struct rte_ether_addr tmp_mac;
-		rte_ether_addr_copy(&eth_hdr->dst_addr, &tmp_mac);
-		rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
-		rte_ether_addr_copy(&tmp_mac, &eth_hdr->src_addr);
+        // Swap MAC addresses
+        struct rte_ether_addr tmp_mac;
+        rte_ether_addr_copy(&eth_hdr->dst_addr, &tmp_mac);
+        rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
+        rte_ether_addr_copy(&tmp_mac, &eth_hdr->src_addr);
 
-		// Swap IP addresses
-		uint32_t tmp_ip = ip_hdr->src_addr;
-		ip_hdr->src_addr = ip_hdr->dst_addr;
-		ip_hdr->dst_addr = tmp_ip;
+        // Swap IP addresses
+        uint32_t tmp_ip = ip_hdr->src_addr;
+        ip_hdr->src_addr = ip_hdr->dst_addr;
+        ip_hdr->dst_addr = tmp_ip;
 
-		// Swap TCP ports
-		uint16_t tmp_port = tcp_hdr->src_port;
-		tcp_hdr->src_port = tcp_hdr->dst_port;
-		tcp_hdr->dst_port = tmp_port;
+        // Swap TCP ports
+        uint16_t tmp_port = tcp_hdr->src_port;
+        tcp_hdr->src_port = tcp_hdr->dst_port;
+        tcp_hdr->dst_port = tmp_port;
 
-		// Set TCP flags to reset (RST)
-		tcp_hdr->tcp_flags = RTE_TCP_RST;
+        // Set TCP header length
+        tcp_hdr->data_off = (sizeof(struct rte_tcp_hdr) / 4) << 4; // Divide by 4 for 32-bit words
 
-		ip_hdr->total_length = rte_cpu_to_be_16(40);
+        // Set TCP flags to reset (RST)
+        tcp_hdr->tcp_flags = RTE_TCP_RST;
 
-		// Extract the acknowledgment number from the TCP header
-		uint32_t ack_number = rte_be_to_cpu_32(tcp_hdr->recv_ack);
+        ip_hdr->total_length = rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 
-		// Set the sequence number in the TCP header to the received acknowledgment number
-		tcp_hdr->sent_seq = rte_cpu_to_be_32(ack_number);
+        // Extract the acknowledgment number from the TCP header
+        uint32_t ack_number = rte_be_to_cpu_32(tcp_hdr->recv_ack);
 
-		tcp_hdr->recv_ack = 0;
+        // Set the sequence number in the TCP header to the received acknowledgment number
+        tcp_hdr->sent_seq = rte_cpu_to_be_32(ack_number);
 
-		// Calculate and set the new IP and TCP checksums (optional)
-		ip_hdr->hdr_checksum = 0;
-		tcp_hdr->cksum = 0;
-		ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
-		tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
+        tcp_hdr->recv_ack = 0;
 
-		// Extract TCP flags
-		uint16_t tcp_flags = rte_be_to_cpu_16(tcp_hdr->tcp_flags);
-	}
+        // Calculate and set the new IP and TCP checksums (optional)
+        tcp_hdr->cksum = 0;
+        tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
+
+        ip_hdr->hdr_checksum = 0;
+        ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
+    }
 }
 
 static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 {
+    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
 
-	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
+    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
+    {
+        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+        struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
 
-	if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-	{
-		struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-		struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
+        // Increment the sequence number by 1
+        tcp_hdr->sent_seq = rte_cpu_to_be_32(rte_be_to_cpu_32(tcp_hdr->sent_seq) + 1);
 
-		tcp_hdr->sent_seq = rte_cpu_to_be_32(tcp_hdr->sent_seq + 1);
-		tcp_hdr->recv_ack = rte_cpu_to_be_32(tcp_hdr->sent_seq);
-		tcp_hdr->tcp_flags = RTE_TCP_RST;
-		// Calculate TCP payload length
+        // Set acknowledgment number to 0
+        tcp_hdr->recv_ack = rte_cpu_to_be_32(0);
 
-		ip_hdr->total_length = rte_cpu_to_be_16(40);
+        // Set TCP flags to reset (RST)
+        tcp_hdr->tcp_flags = RTE_TCP_RST;
 
-		// // Calculate and set the new IP and TCP checksums (optional)
-		ip_hdr->hdr_checksum = 0;
-		tcp_hdr->cksum = 0;
-		ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
-		tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
-	}
+        // Set TCP header length
+        tcp_hdr->data_off = (sizeof(struct rte_tcp_hdr) / 4) << 4; // Divide by 4 for 32-bit words
+
+        // Set IP total length to 40 (TCP RST packets have no payload)
+        ip_hdr->total_length = rte_cpu_to_be_16(40);
+
+        // Calculate and set the new IP and TCP checksums
+        ip_hdr->hdr_checksum = 0;
+        tcp_hdr->cksum = 0;
+        ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
+        tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
+    }
 }
 
 void countStrings(char strings[CACHE_SIZE][MAX_STRINGS], int numStrings)
 {
-	// Assuming db_hit_count is declared globally or elsewhere in the code
-	// You need to know its size to memset it properly
-	// I'll assume MAX_HIT_COUNTS for illustration
-	memset(db_hit_count, 0, sizeof(db_hit_count));
 
 	for (int i = 0; i < numStrings; i++)
 	{
@@ -1206,6 +1243,7 @@ void countStrings(char strings[CACHE_SIZE][MAX_STRINGS], int numStrings)
 				break;
 			}
 		}
+		logMessage(__FILE__, __LINE__, "ID: %s, Hit Count: %ld\n", db_hit_count[i].id, db_hit_count[i].hit_count);
 
 		// If the string wasn't found and no empty slots are available, stop
 		if (!found)
@@ -1231,7 +1269,6 @@ static void sum_count(int *last_run_count, json_t *jsonArray)
 	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_count)
 	{
 		populate_json_hitcount(jsonArray);
-		memset(db_hit_count, 0, sizeof(db_hit_count));
 
 		send_hitcount_to_server(jsonArray);
 
@@ -1439,7 +1476,7 @@ static inline bool domain_checker(char *domain)
 
 	// Prepare an SQL query to check if the domain exists in the database
 	char query[256];
-	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s' OR ip_address = '%s'", domain, domain);
+	snprintf(query, sizeof(query), "SELECT id FROM policies WHERE domain = '%s'", domain);
 
 	// Execute the SQL query
 	sqlite3_stmt *stmt;
@@ -1513,7 +1550,6 @@ lcore_stats_process(void)
 		// Send stats
 		send_stats(jsonStats, &last_run_send);
 		// Print the statistics
-		
 	}
 }
 
@@ -1583,7 +1619,7 @@ lcore_http_process(void)
 				}
 				else
 				{
-					rstClient++;
+					rstClient_http++;
 				}
 
 				const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
@@ -1594,7 +1630,7 @@ lcore_http_process(void)
 				}
 				else
 				{
-					rstServer++;
+					rstServer_http++;
 				}
 			}
 
@@ -1663,7 +1699,7 @@ lcore_https_process(void)
 				reset_tcp_server(rst_pkt_server);
 
 				// Transmit modified packets
-				const uint16_t rst_client_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_client, 1);
+				const uint16_t rst_client_tx_count = rte_eth_tx_burst(3, 0, &rst_pkt_client, 1);
 				if (rst_client_tx_count == 0)
 				{
 					logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
@@ -1671,10 +1707,11 @@ lcore_https_process(void)
 				}
 				else
 				{
-					rstClient++;
+					logMessage(__FILE__, __LINE__, "packet to client\n");
+					rstClient_tls++;
 				}
 
-				const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
+				const uint16_t rst_server_tx_count = rte_eth_tx_burst(3, 0, &rst_pkt_server, 1);
 				if (rst_server_tx_count == 0)
 				{
 					logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
@@ -1682,7 +1719,8 @@ lcore_https_process(void)
 				}
 				else
 				{
-					rstServer++;
+					logMessage(__FILE__, __LINE__, "packet to server\n");
+					rstServer_tls++;
 				}
 			}
 
@@ -1792,10 +1830,10 @@ int main(int argc, char *argv[])
 
 	// count the number of ports to send and receive
 nb_ports = rte_eth_dev_count_avail();
-if (nb_ports != 3)
+if (nb_ports != 4)
 {
-    logMessage(__FILE__, __LINE__, "Error: number of ports must be 3\n");
-    rte_exit(EXIT_FAILURE, "Error: number of ports must be 3\n");
+    logMessage(__FILE__, __LINE__, "Error: number of ports must be 4\n");
+    rte_exit(EXIT_FAILURE, "Error: number of ports must be 4\n");
 }
 
 	// allocates the mempool to hold the mbufs

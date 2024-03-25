@@ -1,96 +1,277 @@
-[2024-03-24 10:11:16] [policyServer.c:1293] - 'policies' table already exists.
-[2024-03-24 10:11:16] [policyServer.c:1767] - Starting the application
-[2024-03-24 10:11:16] [policyServer.c:535] - MAX_PACKET_LEN: 1500
-[2024-03-24 10:11:16] [policyServer.c:540] - RX_RING_SIZE: 1024
-[2024-03-24 10:11:16] [policyServer.c:545] - TX_RING_SIZE: 1024
-[2024-03-24 10:11:16] [policyServer.c:550] - NUM_MBUFS: 8191
-[2024-03-24 10:11:16] [policyServer.c:555] - MBUF_CACHE_SIZE: 250
-[2024-03-24 10:11:16] [policyServer.c:560] - BURST_SIZE: 32
-[2024-03-24 10:11:16] [policyServer.c:565] - MAX_TCP_PAYLOAD_LEN: 1024
-[2024-03-24 10:11:16] [policyServer.c:590] - PS ID: cd413e3c-3139-4a51-a592-c2a31c29dd4c
-[2024-03-24 10:11:16] [policyServer.c:595] - HOSTNAME: http://192.168.0.70:3000
-[2024-03-24 10:11:16] [policyServer.c:570] - STAT_FILE: stats/stats
-[2024-03-24 10:11:16] [policyServer.c:575] - STAT_FILE_EXT: .csv
-[2024-03-24 10:11:16] [policyServer.c:580] - TIMER_PERIOD_STATS: 1
-[2024-03-24 10:11:16] [policyServer.c:585] - TIMER_PERIOD_SEND: 1
-[2024-03-24 10:11:16] [policyServer.c:1775] - Load config done
-[2024-03-24 10:11:16] [policyServer.c:1795] - Clean the statistics data
-[2024-03-24 10:11:16] [policyServer.c:1815] - Create mbuf pool done
-[2024-03-24 10:11:16] [policyServer.c:407] - Port 0 MAC: ae 50 82 be 45 ac
-[2024-03-24 10:11:16] [policyServer.c:407] - Port 1 MAC: 0a 73 10 a5 ce 50
-[2024-03-24 10:11:16] [policyServer.c:407] - Port 2 MAC: a6 0f cf 49 1b c2
-[2024-03-24 10:11:16] [policyServer.c:1844] - HTTP on core 1
-[2024-03-24 10:11:16] [policyServer.c:1850] - HTTPS on core 2
-[2024-03-24 10:11:16] [policyServer.c:1856] - Stats on core 3
-[2024-03-24 10:11:16] [policyServer.c:1862] - DB on core 4
-[2024-03-24 10:11:16] [policyServer.c:1868] - Run the lcore http function
-[2024-03-24 10:11:16] [policyServer.c:1872] - Run the lcore https function
-[2024-03-24 10:11:16] [policyServer.c:1543] - 
+[2024-03-25 09:51:50] [policyServer.c:1324] - Created 'policies' table.
+[2024-03-25 09:51:50] [policyServer.c:1801] - Starting the application
+[2024-03-25 09:51:50] [policyServer.c:535] - MAX_PACKET_LEN: 1500
+[2024-03-25 09:51:50] [policyServer.c:540] - RX_RING_SIZE: 1024
+[2024-03-25 09:51:50] [policyServer.c:545] - TX_RING_SIZE: 1024
+[2024-03-25 09:51:50] [policyServer.c:550] - NUM_MBUFS: 8191
+[2024-03-25 09:51:50] [policyServer.c:555] - MBUF_CACHE_SIZE: 250
+[2024-03-25 09:51:50] [policyServer.c:560] - BURST_SIZE: 32
+[2024-03-25 09:51:50] [policyServer.c:565] - MAX_TCP_PAYLOAD_LEN: 1024
+[2024-03-25 09:51:50] [policyServer.c:590] - PS ID: 778a170c-9823-478c-9f66-8959bf8519d7
+[2024-03-25 09:51:50] [policyServer.c:595] - HOSTNAME: http://192.168.0.70:3000
+[2024-03-25 09:51:50] [policyServer.c:570] - STAT_FILE: stats/stats
+[2024-03-25 09:51:50] [policyServer.c:575] - STAT_FILE_EXT: .csv
+[2024-03-25 09:51:50] [policyServer.c:580] - TIMER_PERIOD_STATS: 1
+[2024-03-25 09:51:50] [policyServer.c:585] - TIMER_PERIOD_SEND: 1
+[2024-03-25 09:51:50] [policyServer.c:1809] - Load config done
+[2024-03-25 09:51:50] [policyServer.c:1829] - Clean the statistics data
+[2024-03-25 09:51:50] [policyServer.c:1849] - Create mbuf pool done
+[2024-03-25 09:51:50] [policyServer.c:409] - Port 0 MAC: ae 50 82 be 45 ac
+[2024-03-25 09:51:50] [policyServer.c:409] - Port 1 MAC: 0a 73 10 a5 ce 50
+[2024-03-25 09:51:50] [policyServer.c:409] - Port 2 MAC: a6 0f cf 49 1b c2
+[2024-03-25 09:51:50] [policyServer.c:409] - Port 3 MAC: 7a 13 31 6f 37 d7
+[2024-03-25 09:51:50] [policyServer.c:1878] - HTTP on core 1
+[2024-03-25 09:51:50] [policyServer.c:1884] - HTTPS on core 2
+[2024-03-25 09:51:50] [policyServer.c:1890] - Stats on core 3
+[2024-03-25 09:51:50] [policyServer.c:1896] - DB on core 4
+[2024-03-25 09:51:50] [policyServer.c:1902] - Run the lcore http function
+[2024-03-25 09:51:50] [policyServer.c:1906] - Run the lcore https function
+[2024-03-25 09:51:50] [policyServer.c:1911] - Run the stats
+[2024-03-25 09:51:50] [policyServer.c:1577] - 
 Core 1 forwarding packets. [Ctrl+C to quit]
-[2024-03-24 10:11:16] [policyServer.c:1877] - Run the stats
-[2024-03-24 10:11:45] [policyServer.c:1293] - 'policies' table already exists.
-[2024-03-24 10:11:45] [policyServer.c:1767] - Starting the application
-[2024-03-24 10:11:45] [policyServer.c:535] - MAX_PACKET_LEN: 1500
-[2024-03-24 10:11:45] [policyServer.c:540] - RX_RING_SIZE: 1024
-[2024-03-24 10:11:45] [policyServer.c:545] - TX_RING_SIZE: 1024
-[2024-03-24 10:11:45] [policyServer.c:550] - NUM_MBUFS: 8191
-[2024-03-24 10:11:45] [policyServer.c:555] - MBUF_CACHE_SIZE: 250
-[2024-03-24 10:11:45] [policyServer.c:560] - BURST_SIZE: 32
-[2024-03-24 10:11:45] [policyServer.c:565] - MAX_TCP_PAYLOAD_LEN: 1024
-[2024-03-24 10:11:45] [policyServer.c:590] - PS ID: cd413e3c-3139-4a51-a592-c2a31c29dd4c
-[2024-03-24 10:11:45] [policyServer.c:595] - HOSTNAME: http://192.168.0.70:3000
-[2024-03-24 10:11:45] [policyServer.c:570] - STAT_FILE: stats/stats
-[2024-03-24 10:11:45] [policyServer.c:575] - STAT_FILE_EXT: .csv
-[2024-03-24 10:11:45] [policyServer.c:580] - TIMER_PERIOD_STATS: 1
-[2024-03-24 10:11:45] [policyServer.c:585] - TIMER_PERIOD_SEND: 1
-[2024-03-24 10:11:45] [policyServer.c:1775] - Load config done
-[2024-03-24 10:11:45] [policyServer.c:1795] - Clean the statistics data
-[2024-03-24 10:11:45] [policyServer.c:1815] - Create mbuf pool done
-[2024-03-24 10:11:45] [policyServer.c:407] - Port 0 MAC: ae 50 82 be 45 ac
-[2024-03-24 10:11:45] [policyServer.c:407] - Port 1 MAC: 0a 73 10 a5 ce 50
-[2024-03-24 10:11:45] [policyServer.c:407] - Port 2 MAC: a6 0f cf 49 1b c2
-[2024-03-24 10:11:45] [policyServer.c:1844] - HTTP on core 1
-[2024-03-24 10:11:45] [policyServer.c:1850] - HTTPS on core 2
-[2024-03-24 10:11:45] [policyServer.c:1856] - Stats on core 3
-[2024-03-24 10:11:45] [policyServer.c:1862] - DB on core 4
-[2024-03-24 10:11:45] [policyServer.c:1868] - Run the lcore http function
-[2024-03-24 10:11:45] [policyServer.c:1872] - Run the lcore https function
-[2024-03-24 10:11:45] [policyServer.c:1543] - 
-Core 1 forwarding packets. [Ctrl+C to quit]
-[2024-03-24 10:11:45] [policyServer.c:1877] - Run the stats
-[2024-03-24 10:11:45] [policyServer.c:1881] - Run the Kafka Broker
-[2024-03-24 10:11:45] [policyServer.c:1886] - Run the heartbeat
-[2024-03-24 10:11:45] [policyServer.c:1505] - Starting stats process in 3
-[2024-03-24 10:13:20] [policyServer.c:1293] - 'policies' table already exists.
-[2024-03-24 10:13:20] [policyServer.c:1768] - Starting the application
-[2024-03-24 10:13:20] [policyServer.c:535] - MAX_PACKET_LEN: 1500
-[2024-03-24 10:13:20] [policyServer.c:540] - RX_RING_SIZE: 1024
-[2024-03-24 10:13:20] [policyServer.c:545] - TX_RING_SIZE: 1024
-[2024-03-24 10:13:20] [policyServer.c:550] - NUM_MBUFS: 8191
-[2024-03-24 10:13:20] [policyServer.c:555] - MBUF_CACHE_SIZE: 250
-[2024-03-24 10:13:20] [policyServer.c:560] - BURST_SIZE: 32
-[2024-03-24 10:13:20] [policyServer.c:565] - MAX_TCP_PAYLOAD_LEN: 1024
-[2024-03-24 10:13:20] [policyServer.c:590] - PS ID: cd413e3c-3139-4a51-a592-c2a31c29dd4c
-[2024-03-24 10:13:20] [policyServer.c:595] - HOSTNAME: http://192.168.0.70:3000
-[2024-03-24 10:13:20] [policyServer.c:570] - STAT_FILE: stats/stats
-[2024-03-24 10:13:20] [policyServer.c:575] - STAT_FILE_EXT: .csv
-[2024-03-24 10:13:20] [policyServer.c:580] - TIMER_PERIOD_STATS: 1
-[2024-03-24 10:13:20] [policyServer.c:585] - TIMER_PERIOD_SEND: 1
-[2024-03-24 10:13:20] [policyServer.c:1776] - Load config done
-[2024-03-24 10:13:20] [policyServer.c:1796] - Clean the statistics data
-[2024-03-24 10:13:20] [policyServer.c:1816] - Create mbuf pool done
-[2024-03-24 10:13:20] [policyServer.c:407] - Port 0 MAC: ae 50 82 be 45 ac
-[2024-03-24 10:13:20] [policyServer.c:407] - Port 1 MAC: 0a 73 10 a5 ce 50
-[2024-03-24 10:13:20] [policyServer.c:407] - Port 2 MAC: a6 0f cf 49 1b c2
-[2024-03-24 10:13:20] [policyServer.c:1845] - HTTP on core 1
-[2024-03-24 10:13:20] [policyServer.c:1851] - HTTPS on core 2
-[2024-03-24 10:13:20] [policyServer.c:1857] - Stats on core 3
-[2024-03-24 10:13:20] [policyServer.c:1863] - DB on core 4
-[2024-03-24 10:13:20] [policyServer.c:1869] - Run the lcore http function
-[2024-03-24 10:13:20] [policyServer.c:1873] - Run the lcore https function
-[2024-03-24 10:13:20] [policyServer.c:1543] - 
-Core 1 forwarding packets. [Ctrl+C to quit]
-[2024-03-24 10:13:20] [policyServer.c:1878] - Run the stats
-[2024-03-24 10:13:20] [policyServer.c:1882] - Run the Kafka Broker
-[2024-03-24 10:13:20] [policyServer.c:1505] - Starting stats process in 3
-[2024-03-24 10:13:20] [policyServer.c:1887] - Run the heartbeat
+[2024-03-25 09:51:50] [policyServer.c:1915] - Run the Kafka Broker
+[2024-03-25 09:51:50] [policyServer.c:1665] - 
+Core 2 forwarding packets. [Ctrl+C to quit]
+[2024-03-25 09:51:50] [policyServer.c:1541] - Starting stats process in 3
+[2024-03-25 09:51:50] [policyServer.c:874] - jsonString []
+[2024-03-25 09:51:50] [policyServer.c:622] - Response: [] 
+[2024-03-25 09:51:50] [policyServer.c:909] - Send Count Success: []
+[2024-03-25 09:51:50] [policyServer.c:422] - Opening file stats/stats2024-03-25T09:51:00.csv
+[2024-03-25 09:51:50] [policyServer.c:983] - Sending statistics to server
+[2024-03-25 09:51:50] [policyServer.c:1920] - Run the heartbeat
+[2024-03-25 09:51:50] [policyServer.c:1762] - Time : 2024-03-25T09:51:50.000Z
+[2024-03-25 09:51:50] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:51:50.000Z"}]
+[2024-03-25 09:51:50] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4965,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:51:50.000Z"}]} 
+[2024-03-25 09:51:51] [policyServer.c:152] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T02:47:04.251Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":3,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-25 09:51:51] [policyServer.c:257] - ui.ac.id updated to the database
+[2024-03-25 09:51:51] [policyServer.c:152] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-25T03:11:55.557Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-25 09:51:51] [policyServer.c:257] - wikipedia.com updated to the database
+[2024-03-25 09:51:51] [policyServer.c:152] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T02:41:48.771Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Test","domain":"Test","ip_add":""},"type":"create"}
+[2024-03-25 09:51:51] [policyServer.c:257] - Test updated to the database
+[2024-03-25 09:51:51] [policyServer.c:152] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-25 09:51:51] [policyServer.c:257] - tv1.idlixofficial.co updated to the database
+[2024-03-25 09:51:51] [policyServer.c:152] - Received message: {"updatedBlockedList":{"id":"6d474306-292b-46e0-bfa0-3c21266e26b2","name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250","hit_count":0,"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
+[2024-03-25 09:51:51] [policyServer.c:257] - facebook.co.id updated to the database
+[2024-03-25 09:51:55] [policyServer.c:1762] - Time : 2024-03-25T09:51:55.000Z
+[2024-03-25 09:51:55] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:51:55.000Z"}]
+[2024-03-25 09:51:55] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4966,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:51:55.000Z"}]} 
+[2024-03-25 09:52:00] [policyServer.c:422] - Opening file stats/stats2024-03-25T09:52:00.csv
+[2024-03-25 09:52:00] [policyServer.c:983] - Sending statistics to server
+[2024-03-25 09:52:00] [policyServer.c:874] - jsonString []
+[2024-03-25 09:52:00] [policyServer.c:622] - Response: [] 
+[2024-03-25 09:52:00] [policyServer.c:909] - Send Count Success: []
+[2024-03-25 09:52:00] [policyServer.c:1762] - Time : 2024-03-25T09:52:00.000Z
+[2024-03-25 09:52:00] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:00.000Z"}]
+[2024-03-25 09:52:00] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4967,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:00.000Z"}]} 
+[2024-03-25 09:52:05] [policyServer.c:1762] - Time : 2024-03-25T09:52:05.000Z
+[2024-03-25 09:52:05] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:05.000Z"}]
+[2024-03-25 09:52:05] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4968,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:05.000Z"}]} 
+[2024-03-25 09:52:09] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:52:09] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:09] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:10] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:10] [policyServer.c:1762] - Time : 2024-03-25T09:52:10.000Z
+[2024-03-25 09:52:10] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:10.000Z"}]
+[2024-03-25 09:52:10] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4969,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:10.000Z"}]} 
+[2024-03-25 09:52:10] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:11] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:11] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:11] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:11] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:52:12] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:13] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:14] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:15] [policyServer.c:1762] - Time : 2024-03-25T09:52:15.000Z
+[2024-03-25 09:52:15] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:15.000Z"}]
+[2024-03-25 09:52:15] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4970,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:15.000Z"}]} 
+[2024-03-25 09:52:15] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:52:16] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:20] [policyServer.c:1762] - Time : 2024-03-25T09:52:20.000Z
+[2024-03-25 09:52:20] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:20.000Z"}]
+[2024-03-25 09:52:20] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4971,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:20.000Z"}]} 
+[2024-03-25 09:52:22] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:24] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:24] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:52:25] [policyServer.c:1762] - Time : 2024-03-25T09:52:25.000Z
+[2024-03-25 09:52:25] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:25.000Z"}]
+[2024-03-25 09:52:25] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4972,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:25.000Z"}]} 
+[2024-03-25 09:52:30] [policyServer.c:1762] - Time : 2024-03-25T09:52:30.000Z
+[2024-03-25 09:52:30] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:30.000Z"}]
+[2024-03-25 09:52:30] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4973,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:30.000Z"}]} 
+[2024-03-25 09:52:35] [policyServer.c:1762] - Time : 2024-03-25T09:52:35.000Z
+[2024-03-25 09:52:35] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:35.000Z"}]
+[2024-03-25 09:52:35] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4974,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:35.000Z"}]} 
+[2024-03-25 09:52:37] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:40] [policyServer.c:1762] - Time : 2024-03-25T09:52:40.000Z
+[2024-03-25 09:52:40] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:40.000Z"}]
+[2024-03-25 09:52:40] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4975,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:40.000Z"}]} 
+[2024-03-25 09:52:40] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:41] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 1
+[2024-03-25 09:52:41] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:52:41] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:52:41] [policyServer.c:1710] - packet to client
+[2024-03-25 09:52:41] [policyServer.c:1722] - packet to server
+[2024-03-25 09:52:41] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:52:41] [policyServer.c:1710] - packet to client
+[2024-03-25 09:52:41] [policyServer.c:1722] - packet to server
+[2024-03-25 09:52:41] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:52:45] [policyServer.c:1762] - Time : 2024-03-25T09:52:45.000Z
+[2024-03-25 09:52:45] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:45.000Z"}]
+[2024-03-25 09:52:45] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4976,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:45.000Z"}]} 
+[2024-03-25 09:52:50] [policyServer.c:1762] - Time : 2024-03-25T09:52:50.000Z
+[2024-03-25 09:52:50] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:50.000Z"}]
+[2024-03-25 09:52:50] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4977,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:50.000Z"}]} 
+[2024-03-25 09:52:54] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:54] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:52:54] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:54] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:55] [policyServer.c:1762] - Time : 2024-03-25T09:52:55.000Z
+[2024-03-25 09:52:55] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:52:55.000Z"}]
+[2024-03-25 09:52:55] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4978,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:52:55.000Z"}]} 
+[2024-03-25 09:52:55] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:55] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:56] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:56] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:56] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:57] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:52:57] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:52:58] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:00] [policyServer.c:422] - Opening file stats/stats2024-03-25T09:53:00.csv
+[2024-03-25 09:53:00] [policyServer.c:983] - Sending statistics to server
+[2024-03-25 09:53:00] [policyServer.c:874] - jsonString [{"id": "39eb26c2-250c-4a05-934e-530333a7a301", "hit_count": 2}, {"id": "", "hit_count": 2}]
+[2024-03-25 09:53:00] [policyServer.c:622] - Response: [{"id":"39eb26c2-250c-4a05-934e-530333a7a301","message":"Blocked list hit count successfully updated"},{"id":"","error":"id is empty"}] 
+[2024-03-25 09:53:00] [policyServer.c:909] - Send Count Success: [{"id": "39eb26c2-250c-4a05-934e-530333a7a301", "hit_count": 2}, {"id": "", "hit_count": 2}]
+[2024-03-25 09:53:00] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:00] [policyServer.c:1762] - Time : 2024-03-25T09:53:00.000Z
+[2024-03-25 09:53:00] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:00.000Z"}]
+[2024-03-25 09:53:00] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4979,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:00.000Z"}]} 
+[2024-03-25 09:53:01] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:53:01] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:05] [policyServer.c:1762] - Time : 2024-03-25T09:53:05.000Z
+[2024-03-25 09:53:05] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:05.000Z"}]
+[2024-03-25 09:53:05] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4980,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:05.000Z"}]} 
+[2024-03-25 09:53:08] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:09] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:09] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:53:10] [policyServer.c:1762] - Time : 2024-03-25T09:53:10.000Z
+[2024-03-25 09:53:10] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:10.000Z"}]
+[2024-03-25 09:53:10] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4981,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:10.000Z"}]} 
+[2024-03-25 09:53:15] [policyServer.c:1762] - Time : 2024-03-25T09:53:15.000Z
+[2024-03-25 09:53:15] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:15.000Z"}]
+[2024-03-25 09:53:15] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4982,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:15.000Z"}]} 
+[2024-03-25 09:53:17] [policyServer.c:1710] - packet to client
+[2024-03-25 09:53:17] [policyServer.c:1722] - packet to server
+[2024-03-25 09:53:17] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 1
+[2024-03-25 09:53:18] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:53:20] [policyServer.c:1710] - packet to client
+[2024-03-25 09:53:20] [policyServer.c:1722] - packet to server
+[2024-03-25 09:53:20] [policyServer.c:1762] - Time : 2024-03-25T09:53:20.000Z
+[2024-03-25 09:53:20] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:20.000Z"}]
+[2024-03-25 09:53:20] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4983,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:20.000Z"}]} 
+[2024-03-25 09:53:25] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:25] [policyServer.c:1762] - Time : 2024-03-25T09:53:25.000Z
+[2024-03-25 09:53:25] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:25.000Z"}]
+[2024-03-25 09:53:25] [policyServer.c:1774] - Heartbeat failed: Failed sending data to the peer
+[2024-03-25 09:53:25] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:26] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:53:30] [policyServer.c:1762] - Time : 2024-03-25T09:53:30.000Z
+[2024-03-25 09:53:30] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:30.000Z"}]
+[2024-03-25 09:53:30] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4984,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:30.000Z"}]} 
+[2024-03-25 09:53:35] [policyServer.c:1762] - Time : 2024-03-25T09:53:35.000Z
+[2024-03-25 09:53:35] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:35.000Z"}]
+[2024-03-25 09:53:35] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4985,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:35.000Z"}]} 
+[2024-03-25 09:53:39] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:39] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:53:39] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:39] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:40] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:40] [policyServer.c:1762] - Time : 2024-03-25T09:53:40.000Z
+[2024-03-25 09:53:40] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:40.000Z"}]
+[2024-03-25 09:53:40] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4986,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:40.000Z"}]} 
+[2024-03-25 09:53:41] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:41] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:41] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:41] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:42] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:53:42] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:43] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:45] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:45] [policyServer.c:1762] - Time : 2024-03-25T09:53:45.000Z
+[2024-03-25 09:53:45] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:45.000Z"}]
+[2024-03-25 09:53:45] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4987,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:45.000Z"}]} 
+[2024-03-25 09:53:46] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:46] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:53:50] [policyServer.c:1762] - Time : 2024-03-25T09:53:50.000Z
+[2024-03-25 09:53:50] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:50.000Z"}]
+[2024-03-25 09:53:50] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4988,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:50.000Z"}]} 
+[2024-03-25 09:53:53] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:54] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:53:54] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:53:55] [policyServer.c:1762] - Time : 2024-03-25T09:53:55.000Z
+[2024-03-25 09:53:55] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:53:55.000Z"}]
+[2024-03-25 09:53:55] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4989,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:53:55.000Z"}]} 
+[2024-03-25 09:53:56] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:53:56] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:53:57] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:53:57] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:53:57] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:53:57] [policyServer.c:1246] - ID: 39eb26c2-250c-4a05-934e-530333a7a301, Hit Count: 2
+[2024-03-25 09:54:00] [policyServer.c:422] - Opening file stats/stats2024-03-25T09:54:00.csv
+[2024-03-25 09:54:00] [policyServer.c:983] - Sending statistics to server
+[2024-03-25 09:54:00] [policyServer.c:874] - jsonString [{"id": "39eb26c2-250c-4a05-934e-530333a7a301", "hit_count": 2}, {"id": "6d474306-292b-46e0-bfa0-3c21266e26b2", "hit_count": 6}]
+[2024-03-25 09:54:00] [policyServer.c:622] - Response: [{"id":"39eb26c2-250c-4a05-934e-530333a7a301","message":"Blocked list hit count successfully updated"},{"id":"6d474306-292b-46e0-bfa0-3c21266e26b2","message":"Blocked list hit count successfully updated"}] 
+[2024-03-25 09:54:00] [policyServer.c:909] - Send Count Success: [{"id": "39eb26c2-250c-4a05-934e-530333a7a301", "hit_count": 2}, {"id": "6d474306-292b-46e0-bfa0-3c21266e26b2", "hit_count": 6}]
+[2024-03-25 09:54:00] [policyServer.c:1762] - Time : 2024-03-25T09:54:00.000Z
+[2024-03-25 09:54:00] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:00.000Z"}]
+[2024-03-25 09:54:00] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4990,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:00.000Z"}]} 
+[2024-03-25 09:54:05] [policyServer.c:1762] - Time : 2024-03-25T09:54:05.000Z
+[2024-03-25 09:54:05] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:05.000Z"}]
+[2024-03-25 09:54:05] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4991,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:05.000Z"}]} 
+[2024-03-25 09:54:10] [policyServer.c:1762] - Time : 2024-03-25T09:54:10.000Z
+[2024-03-25 09:54:10] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:10.000Z"}]
+[2024-03-25 09:54:10] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4992,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:10.000Z"}]} 
+[2024-03-25 09:54:10] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:11] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:11] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:54:15] [policyServer.c:1762] - Time : 2024-03-25T09:54:15.000Z
+[2024-03-25 09:54:15] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:15.000Z"}]
+[2024-03-25 09:54:15] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4993,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:15.000Z"}]} 
+[2024-03-25 09:54:20] [policyServer.c:1762] - Time : 2024-03-25T09:54:20.000Z
+[2024-03-25 09:54:20] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:20.000Z"}]
+[2024-03-25 09:54:20] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4994,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:20.000Z"}]} 
+[2024-03-25 09:54:24] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:24] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:54:24] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:25] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:25] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:25] [policyServer.c:1762] - Time : 2024-03-25T09:54:25.000Z
+[2024-03-25 09:54:25] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:25.000Z"}]
+[2024-03-25 09:54:25] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4995,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:25.000Z"}]} 
+[2024-03-25 09:54:26] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:26] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:26] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:26] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:27] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:54:27] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:29] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:30] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:30] [policyServer.c:1762] - Time : 2024-03-25T09:54:30.000Z
+[2024-03-25 09:54:30] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:30.000Z"}]
+[2024-03-25 09:54:30] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4996,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:30.000Z"}]} 
+[2024-03-25 09:54:31] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:54:31] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:35] [policyServer.c:1762] - Time : 2024-03-25T09:54:35.000Z
+[2024-03-25 09:54:35] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:35.000Z"}]
+[2024-03-25 09:54:35] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4997,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:35.000Z"}]} 
+[2024-03-25 09:54:38] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:39] [policyServer.c:1005] - Packet is not a TCP packet
+[2024-03-25 09:54:39] [policyServer.c:996] - Packet is not an IPv4 packet
+[2024-03-25 09:54:40] [policyServer.c:1762] - Time : 2024-03-25T09:54:40.000Z
+[2024-03-25 09:54:40] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:40.000Z"}]
+[2024-03-25 09:54:40] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4998,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:40.000Z"}]} 
+[2024-03-25 09:54:45] [policyServer.c:1762] - Time : 2024-03-25T09:54:45.000Z
+[2024-03-25 09:54:45] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:45.000Z"}]
+[2024-03-25 09:54:45] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":4999,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:45.000Z"}]} 
+[2024-03-25 09:54:50] [policyServer.c:1762] - Time : 2024-03-25T09:54:50.000Z
+[2024-03-25 09:54:50] [policyServer.c:1763] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-25T09:54:50.000Z"}]
+[2024-03-25 09:54:50] [policyServer.c:622] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":5000,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-25T09:54:50.000Z"}]} 
