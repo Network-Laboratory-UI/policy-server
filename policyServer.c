@@ -36,6 +36,12 @@
 #define MAX_STRINGS 64
 #define KAFKA_TOPIC "dpdk-blocked-list"
 #define KAFKA_BROKER "192.168.0.90:9092"
+typedef enum
+{
+	LOG_LEVEL_INFO,
+	LOG_LEVEL_WARNING,
+	LOG_LEVEL_ERROR
+} LogLevel;
 
 uint32_t MAX_PACKET_LEN;
 
@@ -110,13 +116,27 @@ typedef struct
 static IPCache ip_cache[CACHE_SIZE];
 static int ipCacheSize = 0;
 
-void logMessage(const char *filename, int line, const char *format, ...)
+const char *getLogLevelString(LogLevel level)
+{
+	switch (level)
+	{
+	case LOG_LEVEL_INFO:
+		return "INFO";
+	case LOG_LEVEL_WARNING:
+		return "WARNING";
+	case LOG_LEVEL_ERROR:
+		return "ERROR";
+	default:
+		return "UNKNOWN";
+	}
+}
+void logMessage(LogLevel level, const char *filename, int line, const char *format, ...)
 {
 	// Open the log file in append mode
 	FILE *file = fopen("logs/log.txt", "a");
 	if (file == NULL)
 	{
-		logMessage(__FILE__, __LINE__, "Error opening file %s\n", filename);
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error opening file %s\n", filename);
 		return;
 	}
 
@@ -128,9 +148,8 @@ void logMessage(const char *filename, int line, const char *format, ...)
 	timeinfo = localtime(&rawtime);
 	strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo);
 
-	// Write the timestamp to the file
-	// fprintf(file, "[%s] ", timestamp);
-	fprintf(file, "[%s] [%s:%d] - ", timestamp, filename, line);
+	// Write the timestamp and log level to the file
+	fprintf(file, "[%s] [%s] [%s:%d] - ", timestamp, getLogLevelString(level), filename, line);
 
 	// Write the formatted message to the file
 	va_list args;
@@ -141,22 +160,23 @@ void logMessage(const char *filename, int line, const char *format, ...)
 	// Close the file
 	fclose(file);
 }
+
 void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 {
 	if (rkmessage->err)
 	{
-		logMessage(__FILE__, __LINE__, "Kafka error: %s\n", rd_kafka_message_errstr(rkmessage));
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Kafka error: %s\n", rd_kafka_message_errstr(rkmessage));
 		return;
 	}
 
-	logMessage(__FILE__, __LINE__, "Received message: %.*s\n", (int)rkmessage->len, (char *)rkmessage->payload);
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Received message: %.*s\n", (int)rkmessage->len, (char *)rkmessage->payload);
 
 	// Parse JSON message
 	json_error_t error;
 	json_t *root = json_loadb(rkmessage->payload, rkmessage->len, 0, &error);
 	if (!root)
 	{
-		logMessage(__FILE__, __LINE__, "JSON parsing error: %s\n", error.text);
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "JSON parsing error: %s\n", error.text);
 		return;
 	}
 
@@ -167,13 +187,13 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	json_t *type = json_object_get(root, "type");
 	if (!type || !json_is_string(type))
 	{
-		logMessage(__FILE__, __LINE__, "Key 'type' not found or not a string\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "Key 'type' not found or not a string\n");
 		goto cleanup;
 	}
 	type_str = json_string_value(type);
 	if (!type_str)
 	{
-		logMessage(__FILE__, __LINE__, "Failed to get 'type' value as string\n");
+		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to get 'type' value as string\n");
 		goto cleanup;
 	}
 
@@ -186,7 +206,7 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 		createdBlockedListKey = "deletedBlockedList";
 	else
 	{
-		logMessage(__FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
+		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
 		goto cleanup;
 	}
 
@@ -194,7 +214,7 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	json_t *createdBlockedList = json_object_get(root, createdBlockedListKey);
 	if (!createdBlockedList || !json_is_object(createdBlockedList))
 	{
-		logMessage(__FILE__, __LINE__, "Key '%s' not found or not an object\n", createdBlockedListKey);
+		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "Key '%s' not found or not an object\n", createdBlockedListKey);
 		goto cleanup;
 	}
 
@@ -205,7 +225,7 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 
 	if (!domain || !json_is_string(domain) || !ip_add || !json_is_string(ip_add) || !id || !json_is_string(id))
 	{
-		logMessage(__FILE__, __LINE__, "Missing or invalid keys in 'createdBlockedList'\n");
+		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Missing or invalid keys in 'createdBlockedList'\n");
 		goto cleanup;
 	}
 
@@ -215,7 +235,7 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 
 	if (!domain_str || !ip_str || !id_str)
 	{
-		logMessage(__FILE__, __LINE__, "Failed to get values from 'createdBlockedList'\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "Failed to get values from 'createdBlockedList'\n");
 		goto cleanup;
 	}
 
@@ -235,13 +255,13 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	}
 	else
 	{
-		logMessage(__FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
+		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "Unsupported 'type' value: %s\n", type_str);
 		goto cleanup;
 	}
 
 	if (query_len <= 0 || query_len >= sizeof(sql_query))
 	{
-		logMessage(__FILE__, __LINE__, "SQL query creation error\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "SQL query creation error\n");
 		goto cleanup;
 	}
 
@@ -249,12 +269,12 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	int sqlite_result = sqlite3_exec(db, sql_query, NULL, 0, &errmsg);
 	if (sqlite_result != SQLITE_OK)
 	{
-		logMessage(__FILE__, __LINE__, "SQL error: %s\n", errmsg);
+		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "SQL error: %s\n", errmsg);
 		sqlite3_free(errmsg);
 	}
 	else
 	{
-		logMessage(__FILE__, __LINE__, "%s updated to the database\n", domain_str);
+		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "%s updated to the database\n", domain_str);
 	}
 
 cleanup:
@@ -274,7 +294,7 @@ void run_kafka_consumer()
 	conf = rd_kafka_conf_new();
 	if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER, NULL, 0) != RD_KAFKA_CONF_OK)
 	{
-		logMessage(__FILE__, __LINE__, "Failed to set Kafka broker configuration\n");
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Failed to set Kafka broker configuration\n");
 		return;
 	}
 
@@ -282,7 +302,7 @@ void run_kafka_consumer()
 	rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, NULL, 0);
 	if (!rk)
 	{
-		logMessage(__FILE__, __LINE__, "Failed to create Kafka consumer\n");
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Failed to create Kafka consumer\n");
 		return;
 	}
 
@@ -290,7 +310,7 @@ void run_kafka_consumer()
 	topic = rd_kafka_topic_new(rk, KAFKA_TOPIC, NULL);
 	if (!topic)
 	{
-		logMessage(__FILE__, __LINE__, "Failed to create Kafka topic object\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__,__LINE__, "Failed to create Kafka topic object\n");
 		rd_kafka_destroy(rk);
 		return;
 	}
@@ -298,7 +318,7 @@ void run_kafka_consumer()
 	// Open SQLite database
 	if (sqlite3_open(db_path, &db) != SQLITE_OK)
 	{
-		logMessage(__FILE__, __LINE__, "Can't open database: %s\n", sqlite3_errmsg(db));
+		logMessage(LOG_LEVEL_ERROR, __FILE__,__LINE__, "Can't open database: %s\n", sqlite3_errmsg(db));
 		rd_kafka_topic_destroy(topic);
 		rd_kafka_destroy(rk);
 		return;
@@ -307,7 +327,7 @@ void run_kafka_consumer()
 	// Start consuming messages
 	if (rd_kafka_consume_start(topic, 0, RD_KAFKA_OFFSET_BEGINNING) == -1)
 	{
-		logMessage(__FILE__, __LINE__, "Failed to start consuming messages\n");
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Failed to start consuming messages\n");
 		rd_kafka_topic_destroy(topic);
 		rd_kafka_destroy(rk);
 		sqlite3_close(db);
@@ -357,7 +377,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	retval = rte_eth_dev_info_get(port, &dev_info);
 	if (retval != 0)
 	{
-		logMessage(__FILE__, __LINE__, "Error during getting device (port %u) info: %s\n",
+		logMessage(LOG_LEVEL_ERROR,__FILE__,__LINE__, "Error during getting device (port %u) info: %s\n",
 				   port, strerror(-retval));
 		return retval;
 	}
@@ -406,7 +426,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	if (retval != 0)
 		return retval;
 
-	logMessage(__FILE__, __LINE__, "Port %u MAC: %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 "\n",
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Port %u MAC: %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 "\n",
 			   port, RTE_ETHER_ADDR_BYTES(&addr));
 
 	// SET THE PORT TO PROMOCIOUS
@@ -419,11 +439,10 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 
 static FILE *open_file(const char *filename)
 {
-	logMessage(__FILE__, __LINE__, "Opening file %s\n", filename);
 	FILE *f = fopen(filename, "a+");
 	if (f == NULL)
 	{
-		logMessage(__FILE__, __LINE__, "Error opening file %s\n", filename);
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error opening file %s\n", filename);
 		rte_exit(EXIT_FAILURE, "Error opening file %s\n", filename);
 	}
 	return f;
@@ -517,7 +536,7 @@ int load_config_file()
 	FILE *configFile = fopen("config/config.cfg", "r");
 	if (configFile == NULL)
 	{
-		logMessage(__FILE__, __LINE__, "Cannot open the config file\n");
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Cannot open the config file\n");
 		return 1;
 	}
 
@@ -532,67 +551,67 @@ int load_config_file()
 			if (strcmp(key, "MAX_PACKET_LEN") == 0)
 			{
 				MAX_PACKET_LEN = atoi(value);
-				logMessage(__FILE__, __LINE__, "MAX_PACKET_LEN: %d\n", MAX_PACKET_LEN);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "MAX_PACKET_LEN: %d\n", MAX_PACKET_LEN);
 			}
 			else if (strcmp(key, "RX_RING_SIZE") == 0)
 			{
 				RX_RING_SIZE = atoi(value);
-				logMessage(__FILE__, __LINE__, "RX_RING_SIZE: %d\n", RX_RING_SIZE);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "RX_RING_SIZE: %d\n", RX_RING_SIZE);
 			}
 			else if (strcmp(key, "TX_RING_SIZE") == 0)
 			{
 				TX_RING_SIZE = atoi(value);
-				logMessage(__FILE__, __LINE__, "TX_RING_SIZE: %d\n", TX_RING_SIZE);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "TX_RING_SIZE: %d\n", TX_RING_SIZE);
 			}
 			else if (strcmp(key, "NUM_MBUFS") == 0)
 			{
 				NUM_MBUFS = atoi(value);
-				logMessage(__FILE__, __LINE__, "NUM_MBUFS: %d\n", NUM_MBUFS);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "NUM_MBUFS: %d\n", NUM_MBUFS);
 			}
 			else if (strcmp(key, "MBUF_CACHE_SIZE") == 0)
 			{
 				MBUF_CACHE_SIZE = atoi(value);
-				logMessage(__FILE__, __LINE__, "MBUF_CACHE_SIZE: %d\n", MBUF_CACHE_SIZE);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "MBUF_CACHE_SIZE: %d\n", MBUF_CACHE_SIZE);
 			}
 			else if (strcmp(key, "BURST_SIZE") == 0)
 			{
 				BURST_SIZE = atoi(value);
-				logMessage(__FILE__, __LINE__, "BURST_SIZE: %d\n", BURST_SIZE);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "BURST_SIZE: %d\n", BURST_SIZE);
 			}
 			else if (strcmp(key, "MAX_TCP_PAYLOAD_LEN") == 0)
 			{
 				MAX_TCP_PAYLOAD_LEN = atoi(value);
-				logMessage(__FILE__, __LINE__, "MAX_TCP_PAYLOAD_LEN: %d\n", MAX_TCP_PAYLOAD_LEN);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "MAX_TCP_PAYLOAD_LEN: %d\n", MAX_TCP_PAYLOAD_LEN);
 			}
 			else if (strcmp(key, "STAT_FILE") == 0)
 			{
 				strcpy(STAT_FILE, value);
-				logMessage(__FILE__, __LINE__, "STAT_FILE: %s\n", STAT_FILE);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "STAT_FILE: %s\n", STAT_FILE);
 			}
 			else if (strcmp(key, "STAT_FILE_EXT") == 0)
 			{
 				strcpy(STAT_FILE_EXT, value);
-				logMessage(__FILE__, __LINE__, "STAT_FILE_EXT: %s\n", STAT_FILE_EXT);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "STAT_FILE_EXT: %s\n", STAT_FILE_EXT);
 			}
 			else if (strcmp(key, "TIMER_PERIOD_STATS") == 0)
 			{
 				TIMER_PERIOD_STATS = atoi(value);
-				logMessage(__FILE__, __LINE__, "TIMER_PERIOD_STATS: %d\n", TIMER_PERIOD_STATS);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "TIMER_PERIOD_STATS: %d\n", TIMER_PERIOD_STATS);
 			}
 			else if (strcmp(key, "TIMER_PERIOD_SEND") == 0)
 			{
 				TIMER_PERIOD_SEND = atoi(value);
-				logMessage(__FILE__, __LINE__, "TIMER_PERIOD_SEND: %d\n", TIMER_PERIOD_SEND);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "TIMER_PERIOD_SEND: %d\n", TIMER_PERIOD_SEND);
 			}
 			else if (strcmp(key, "ID_PS") == 0)
 			{
 				strcpy(PS_ID, value);
-				logMessage(__FILE__, __LINE__, "PS ID: %s\n", PS_ID);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "PS ID: %s\n", PS_ID);
 			}
 			else if (strcmp(key, "HOSTNAME") == 0)
 			{
 				strcpy(HOSTNAME, value);
-				logMessage(__FILE__, __LINE__, "HOSTNAME: %s\n", HOSTNAME);
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "HOSTNAME: %s\n", HOSTNAME);
 			}
 		}
 	}
@@ -612,14 +631,14 @@ signal_handler(int signum)
 {
 	if (signum == SIGINT || signum == SIGTERM)
 	{
-		logMessage(__FILE__, __LINE__, "Signal %d received, preparing to exit...\n", signum);
+		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Signal %d received, preparing to exit...\n", signum);
 		force_quit = true;
 	}
 }
 size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t real_size = size * nmemb;
-	logMessage(__FILE__, __LINE__, "Response: %.*s \n", (int)real_size, (char *)contents);
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Response: %.*s \n", (int)real_size, (char *)contents);
 	return real_size;
 }
 
@@ -857,10 +876,11 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 		*last_run_stat = current_sec;
 	}
 }
+
 static void send_hitcount_to_server(json_t *jsonArray)
 {
 	if(countFlag == 1){
-		logMessage(__FILE__, __LINE__, "Count Exceeds Threshold, Failed to Send\n");
+		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Count Exceeds Threshold, Failed to Send\n");
 		if (jsonArray)
 		json_array_clear(jsonArray);
 		countFlag = 0;
@@ -871,7 +891,6 @@ static void send_hitcount_to_server(json_t *jsonArray)
 	struct curl_slist *headers = NULL;
 	char *jsonString = json_dumps(jsonArray, 0);
 	char url[256];
-	logMessage(__FILE__, __LINE__, "jsonString %s\n", jsonString);
 
 	sprintf(url, "%s/ps/blocked-list-count", HOSTNAME);
 
@@ -880,14 +899,14 @@ static void send_hitcount_to_server(json_t *jsonArray)
 
 	if (!curl)
 	{
-		logMessage(__FILE__, __LINE__, "Failed to initialize CURL\n");
+		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to initialize CURL\n");
 		goto cleanup;
 	}
 
 	headers = curl_slist_append(headers, "Content-Type: application/json");
 	if (!headers)
 	{
-		logMessage(__FILE__, __LINE__, "Failed to create headers\n");
+		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to create headers\n");
 		goto cleanup;
 	}
 
@@ -900,13 +919,13 @@ static void send_hitcount_to_server(json_t *jsonArray)
 	res = curl_easy_perform(curl);
 	if (res != CURLE_OK)
 	{
-		logMessage(__FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-		logMessage(__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
+		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
 		goto cleanup;
 	}
 	else
 	{
-		logMessage(__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
+		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
 	}
 
 cleanup:
@@ -953,7 +972,7 @@ send_stats_to_server(json_t *jsonArray)
 		if (res != CURLE_OK)
 		{
 			fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-			logMessage(__FILE__, __LINE__, "Send Stats failed: %s\n", curl_easy_strerror(res));
+			logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Send Stats failed: %s\n", curl_easy_strerror(res));
 		}
 
 		curl_slist_free_all(headers);
@@ -980,7 +999,7 @@ send_stats(json_t *jsonArray, int *last_run_send)
 	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_send)
 	{
 		// send the statistics to the server
-		logMessage(__FILE__, __LINE__, "Sending statistics to server\n");
+		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Sending statistics to server\n");
 		send_stats_to_server(jsonArray);
 		*last_run_send = current_min;
 	}
@@ -993,7 +1012,6 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (eth_hdr->ether_type != rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
 	{
-		logMessage(__FILE__, __LINE__, "Packet is not an IPv4 packet\n");
 		return NULL;
 	}
 
@@ -1002,7 +1020,6 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (ip_hdr->next_proto_id != IPPROTO_TCP)
 	{
-		logMessage(__FILE__, __LINE__, "Packet is not a TCP packet\n");
 		return NULL;
 	}
 
@@ -1014,7 +1031,6 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (tls_offset <= 0)
 	{
-		logMessage(__FILE__, __LINE__, "No TLS header found in the packet\n");
 		return NULL;
 	}
 
@@ -1023,7 +1039,6 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (tls_payload_length <= 0)
 	{
-		logMessage(__FILE__, __LINE__, "No TLS payload found in the packet\n");
 		return NULL;
 	}
 
@@ -1032,7 +1047,6 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 
 	if (start_offset < 0 || end_offset >= tls_payload_length)
 	{
-		logMessage(__FILE__, __LINE__, "Invalid byte range specified for the TLS payload\n");
 		return NULL;
 	}
 
@@ -1058,13 +1072,12 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 				extractedName[nameIndex] = (char)tls_payload[counter + 9 + i];
 				nameIndex++;
 			}
-			extractedName[nameIndex] = '\0'; // Null-terminate the string
-			// printf("Name Length: %d\n", namelength);
-			// printf("Extracted Name: %s\n", extractedName);
+			extractedName[nameIndex] = '\0'; 
 
 			// Dynamically allocate memory for the string to return
 			char *result = (char *)malloc(strlen(extractedName) + 1);
 			strcpy(result, extractedName);
+			
 			return result;
 		}
 		else
@@ -1097,7 +1110,6 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 
 	if (payload_offset <= 0)
 	{
-		logMessage(__FILE__, __LINE__, "No HTTP payload found in the packet\n");
 		return NULL;
 	}
 
@@ -1125,7 +1137,6 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 			// Copy host from payload
 			strncpy(host, host_start, host_length);
 			host[host_length] = '\0'; // Null-terminate the string
-
 			return host;
 		}
 	}
@@ -1243,8 +1254,7 @@ void countStrings(char strings[CACHE_SIZE][MAX_STRINGS], int numStrings)
 				break;
 			}
 		}
-		logMessage(__FILE__, __LINE__, "ID: %s, Hit Count: %ld\n", db_hit_count[i].id, db_hit_count[i].hit_count);
-
+		
 		// If the string wasn't found and no empty slots are available, stop
 		if (!found)
 		{
@@ -1285,7 +1295,7 @@ void init_database()
 		if (sqlite3_open(db_path, &db) != SQLITE_OK)
 		{
 			// Handle database opening error
-			logMessage(__FILE__, __LINE__, "Error opening the database: %s\n", sqlite3_errmsg(db));
+			logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error opening the database: %s\n", sqlite3_errmsg(db));
 			// You may want to exit or return an error code here
 		}
 	}
@@ -1295,7 +1305,7 @@ void init_database()
 		if (sqlite3_open(db_path, &db) != SQLITE_OK)
 		{
 			// Handle database creation error
-			logMessage(__FILE__, __LINE__, "Error creating the database: %s\n", sqlite3_errmsg(db));
+			logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error creating the database: %s\n", sqlite3_errmsg(db));
 			// You may want to exit or return an error code here
 		}
 	}
@@ -1316,24 +1326,24 @@ void init_database()
 				char *create_table_sql = "CREATE TABLE policies (id TEXT PRIMARY KEY, ip_address TEXT, domain TEXT);";
 				if (sqlite3_exec(db, create_table_sql, NULL, 0, NULL) != SQLITE_OK)
 				{
-					logMessage(__FILE__, __LINE__, "Error creating the 'policies' table: %s\n", sqlite3_errmsg(db));
+					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error creating the 'policies' table: %s\n", sqlite3_errmsg(db));
 					// You may want to exit or return an error code here
 				}
 				else
 				{
-					logMessage(__FILE__, __LINE__, "Created 'policies' table.\n");
+					logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Created 'policies' table.\n");
 				}
 			}
 			else
 			{
-				logMessage(__FILE__, __LINE__, "'policies' table already exists.\n");
+				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "'policies' table already exists.\n");
 			}
 		}
 	}
 	else
 	{
-		logMessage(__FILE__, __LINE__, "Error checking for 'policies' table: %s\n", sqlite3_errmsg(db));
-		// You may want to exit or return an error code here
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error checking for 'policies' table: %s\n", sqlite3_errmsg(db));
+		
 	}
 
 	sqlite3_finalize(stmt); // Finalize the prepared statement
@@ -1351,11 +1361,11 @@ void delete_database()
 	// Delete the database file
 	if (remove(db_path) != 0)
 	{
-		logMessage(__FILE__, __LINE__, "Error deleting the database file.\n");
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error deleting the database file.\n");
 		return;
 	}
 
-	logMessage(__FILE__, __LINE__, "Database file deleted successfully.\n");
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Database file deleted successfully.\n");
 }
 
 static inline bool ip_checker(struct rte_mbuf *rx_pkt)
@@ -1442,10 +1452,11 @@ unsigned int hash_function(const char *str)
 
 static inline bool domain_checker(char *domain)
 {
-	if (domain == NULL)
-	{
-		return false;
-	}
+	
+	  if (domain == NULL || domain[0] == '\0')
+    {
+        return false;
+    }
 
 	// Use a hash table for faster lookup in the cache
 	unsigned int hash = hash_function(domain);
@@ -1460,7 +1471,7 @@ static inline bool domain_checker(char *domain)
 				hitCounter++;
 			}else{
 				countFlag = 1;
-				logMessage(__FILE__, __LINE__, "Failed to update Hitcount\n");
+				logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to update Hitcount\n");
 			}
 			
 			return true;
@@ -1515,7 +1526,7 @@ static inline bool domain_checker(char *domain)
 			hitCounter++;
 		}else{
 			countFlag = 1;
-			logMessage(__FILE__, __LINE__, "Failed to update Hitcount\n");
+			logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to update Hitcount\n");
 		}
 
 		return true;
@@ -1538,7 +1549,7 @@ lcore_stats_process(void)
 	json_t *jsonStats = json_array();
 	json_t *jsonHitcount = json_array(); // JSON array for statistics
 
-	logMessage(__FILE__, __LINE__, "Starting stats process in %d\n", rte_lcore_id());
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Starting stats process in %d\n", rte_lcore_id());
 
 	while (!force_quit)
 	{
@@ -1556,11 +1567,7 @@ lcore_stats_process(void)
 static inline void
 lcore_http_process(void)
 {
-	// initialization
-	char *extractedName;
 	uint16_t port;
-
-
 	/*
 	 * Check that the port is on the same NUMA node as the polling thread
 	 * for best performance.
@@ -1569,12 +1576,12 @@ lcore_http_process(void)
 	if (rte_eth_dev_socket_id(port) >= 0 &&
 		rte_eth_dev_socket_id(port) !=
 			(int)rte_socket_id())
-		logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
+		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
 									   "polling thread.\n\tPerformance will "
 									   "not be optimal.\n",
 				   port);
 
-	logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Core %u forwarding packets. [Ctrl+C to quit]\n",
 			   rte_lcore_id());
 
 	struct rte_mbuf *rx_bufs[BURST_SIZE];
@@ -1596,13 +1603,13 @@ lcore_http_process(void)
 				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_client == NULL)
 				{
-					logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
+					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error copying packet to RST Client\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
 				}
 				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_server == NULL)
 				{
-					logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
+					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error copying packet to RST Server\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet
 				}
 
@@ -1614,7 +1621,7 @@ lcore_http_process(void)
 				const uint16_t rst_client_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_client, 1);
 				if (rst_client_tx_count == 0)
 				{
-					logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
+					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error sending packet to client\n");
 					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
 				}
 				else
@@ -1625,7 +1632,7 @@ lcore_http_process(void)
 				const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
 				if (rst_server_tx_count == 0)
 				{
-					logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
+					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error sending packet to server\n");
 					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
 				}
 				else
@@ -1657,12 +1664,12 @@ lcore_https_process(void)
 	if (rte_eth_dev_socket_id(port) >= 0 &&
 		rte_eth_dev_socket_id(port) !=
 			(int)rte_socket_id())
-		logMessage(__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
+		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
 									   "polling thread.\n\tPerformance will "
 									   "not be optimal.\n",
 				   port);
 
-	logMessage(__FILE__, __LINE__, "\nCore %u forwarding packets. [Ctrl+C to quit]\n",
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Core %u forwarding packets. [Ctrl+C to quit]\n",
 			   rte_lcore_id());
 
 	struct rte_mbuf *rx_bufs[BURST_SIZE];
@@ -1684,13 +1691,13 @@ lcore_https_process(void)
 				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_client == NULL)
 				{
-					logMessage(__FILE__, __LINE__, "Error copying packet to RST Client\n");
+					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error copying packet to RST Client\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
 				}
 				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_server == NULL)
 				{
-					logMessage(__FILE__, __LINE__, "Error copying packet to RST Server\n");
+					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error copying packet to RST Server\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet
 				}
 
@@ -1702,24 +1709,22 @@ lcore_https_process(void)
 				const uint16_t rst_client_tx_count = rte_eth_tx_burst(3, 0, &rst_pkt_client, 1);
 				if (rst_client_tx_count == 0)
 				{
-					logMessage(__FILE__, __LINE__, "Error sending packet to client\n");
+					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error sending packet to client\n");
 					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
 				}
 				else
 				{
-					logMessage(__FILE__, __LINE__, "packet to client\n");
 					rstClient_tls++;
 				}
 
 				const uint16_t rst_server_tx_count = rte_eth_tx_burst(3, 0, &rst_pkt_server, 1);
 				if (rst_server_tx_count == 0)
 				{
-					logMessage(__FILE__, __LINE__, "Error sending packet to server\n");
+					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error sending packet to server\n");
 					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
 				}
 				else
 				{
-					logMessage(__FILE__, __LINE__, "packet to server\n");
 					rstServer_tls++;
 				}
 			}
@@ -1759,8 +1764,8 @@ lcore_heartbeat_process()
 
 			sprintf(post_fields, "[{\"ps_id\": \"%s\", \"time\": \"%s\"}]", PS_ID, timestamp_str);
 
-			logMessage(__FILE__, __LINE__, "Time : %s\n", timestamp_str);
-			logMessage(__FILE__, __LINE__, "Post Fields : %s\n", post_fields);
+			
+			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Post Fields : %s\n", post_fields);
 			curl_easy_setopt(curl, CURLOPT_URL, url);
 			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_fields);
 			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -1771,7 +1776,7 @@ lcore_heartbeat_process()
 
 			if (res != CURLE_OK)
 			{
-				logMessage(__FILE__, __LINE__, "Heartbeat failed: %s\n", curl_easy_strerror(res));
+				logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Heartbeat failed: %s\n", curl_easy_strerror(res));
 			}
 			sleep(5);
 		}
@@ -1797,22 +1802,20 @@ int main(int argc, char *argv[])
 	unsigned lcore_id, lcore_http = 0, lcore_stats = 0, lcore_db = 0, lcore_https = 0;
 	init_database();
 
-	// log the starting of the application
-	logMessage(__FILE__, __LINE__, "Starting the application\n");
-
 	// load the config file
 	if (load_config_file())
 	{
-		logMessage(__FILE__, __LINE__, "Cannot load the config file\n");
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Cannot load the config file\n");
 		rte_exit(EXIT_FAILURE, "Cannot load the config file\n");
 	}
-	logMessage(__FILE__, __LINE__, "Load config done\n");
+
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Configuration File Successfully Updated\n");
 
 	// Initializion the Environment Abstraction Layer (EAL)
 	int ret = rte_eal_init(argc, argv);
 	if (ret < 0)
 	{
-		logMessage(__FILE__, __LINE__, "Error with EAL initialization\n");
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error with EAL initialization\n");
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
 	}
 
@@ -1826,13 +1829,13 @@ int main(int argc, char *argv[])
 
 	// clean the data
 	memset(port_statistics, 0, 32 * sizeof(struct port_statistics_data));
-	logMessage(__FILE__, __LINE__, "Clean the statistics data\n");
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Port Statistic Cleared\n");
 
 	// count the number of ports to send and receive
 nb_ports = rte_eth_dev_count_avail();
 if (nb_ports != 4)
 {
-    logMessage(__FILE__, __LINE__, "Error: number of ports must be 4\n");
+    logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error: number of ports must be 4\n");
     rte_exit(EXIT_FAILURE, "Error: number of ports must be 4\n");
 }
 
@@ -1843,23 +1846,23 @@ if (nb_ports != 4)
 	// check the mempool allocation
 	if (mbuf_pool == NULL)
 	{
-		logMessage(__FILE__, __LINE__, "Cannot create mbuf pool\n");
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Cannot create mbuf pool\n");
 		rte_exit(EXIT_FAILURE, "Cannot create mbuf pool\n");
 	}
-	logMessage(__FILE__, __LINE__, "Create mbuf pool done\n");
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Successfully Created Mbuf Pool\n");
 
 	// initializing ports
 	RTE_ETH_FOREACH_DEV(portid)
 	if (port_init(portid, mbuf_pool) != 0)
 	{
-		logMessage(__FILE__, __LINE__, "Cannot init port %" PRIu16 "\n", portid);
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Cannot init port %" PRIu16 "\n", portid);
 		rte_exit(EXIT_FAILURE, "Cannot init port %" PRIu16 "\n", portid);
 	}
 
 	// count the number of lcore
 	if (rte_lcore_count() < 5)
 	{
-		logMessage(__FILE__, __LINE__, "lcore must be more than equal 4\n");
+		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "lcore must be more than equal 4\n");
 		rte_exit(EXIT_FAILURE, "lcore must be more than equal 4\n");
 	}
 
@@ -1875,49 +1878,49 @@ if (nb_ports != 4)
 		if (lcore_http == 0)
 		{
 			lcore_http = lcore_id;
-			logMessage(__FILE__, __LINE__, "HTTP on core %u\n", lcore_id);
+			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "HTTP Core Assigned On Core %u\n", lcore_id);
 			continue;
 		}
 		if (lcore_https == 0)
 		{
 			lcore_https = lcore_id;
-			logMessage(__FILE__, __LINE__, "HTTPS on core %u\n", lcore_id);
+			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "HTTPS Core Assigned On Core %u\n", lcore_id);
 			continue;
 		}
 		if (lcore_stats == 0)
 		{
 			lcore_stats = lcore_id;
-			logMessage(__FILE__, __LINE__, "Stats on core %u\n", lcore_id);
+			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Stats Core Assigned On Core %u\n", lcore_id);
 			continue;
 		}
 		if (lcore_db == 0)
 		{
 			lcore_db = lcore_id;
-			logMessage(__FILE__, __LINE__, "DB on core %u\n", lcore_id);
+			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Kafka Core Assigned On Core %u\n", lcore_id);
 			continue;
 		}
 	}
 
 	// run the lcore main function
-	logMessage(__FILE__, __LINE__, "Run the lcore http function\n");
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating HTTP Core\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_http_process,
 						  NULL, lcore_http);
 
-						  logMessage(__FILE__, __LINE__, "Run the lcore https function\n");
+						  logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating HTTPS Core\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_https_process,
 						  NULL, lcore_https);
 
 	// run the stats
-	logMessage(__FILE__, __LINE__, "Run the stats\n");
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating Statistic Core\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_stats_process,
 						  NULL, lcore_stats);
 
-	logMessage(__FILE__, __LINE__, "Run the Kafka Broker\n");
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating Kafka Core\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_sync_database,
 						  NULL, lcore_db);
 
 	// run the heartbeat
-	logMessage(__FILE__, __LINE__, "Run the heartbeat\n");
+	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating Heartbeat Mechanism\n");
 	lcore_heartbeat_process();
 
 	// wait all lcore stopped
