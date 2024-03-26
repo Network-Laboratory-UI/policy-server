@@ -36,6 +36,7 @@
 #define MAX_STRINGS 64
 #define KAFKA_TOPIC "dpdk-blocked-list"
 #define KAFKA_BROKER "192.168.0.90:9092"
+
 typedef enum
 {
 	LOG_LEVEL_INFO,
@@ -74,7 +75,6 @@ struct hit_counter
 	char id[MAX_STRINGS];
 	uint64_t hit_count;
 };
-
 
 struct port_statistics_data
 {
@@ -116,6 +116,13 @@ typedef struct
 static IPCache ip_cache[CACHE_SIZE];
 static int ipCacheSize = 0;
 
+
+/**
+ * Returns the string representation of the given log level.
+ *
+ * @param level The log level to get the string representation for.
+ * @return The string representation of the log level.
+ */
 const char *getLogLevelString(LogLevel level)
 {
 	switch (level)
@@ -130,6 +137,18 @@ const char *getLogLevelString(LogLevel level)
 		return "UNKNOWN";
 	}
 }
+
+/**
+ * Logs a message to a log file with the specified log level, filename, line number, and format.
+ *
+ * @param level The log level of the message.
+ * @param filename The name of the file where the log message is called.
+ * @param line The line number where the log message is called.
+ * @param format The format string for the log message.
+ * @param ... Additional arguments to be formatted according to the format string.
+ *
+ * @return void
+ */
 void logMessage(LogLevel level, const char *filename, int line, const char *format, ...)
 {
 	// Open the log file in append mode
@@ -161,22 +180,28 @@ void logMessage(LogLevel level, const char *filename, int line, const char *form
 	fclose(file);
 }
 
+/**
+ * Consumes a Kafka message and updates an SQLite database based on the message content.
+ *
+ * @param rkmessage A pointer to the Kafka message to consume.
+ * @param db A pointer to the SQLite database.
+ */
 void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 {
 	if (rkmessage->err)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Kafka error: %s\n", rd_kafka_message_errstr(rkmessage));
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Kafka error: %s\n", rd_kafka_message_errstr(rkmessage));
 		return;
 	}
 
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Received message: %.*s\n", (int)rkmessage->len, (char *)rkmessage->payload);
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Received message: %.*s\n", (int)rkmessage->len, (char *)rkmessage->payload);
 
 	// Parse JSON message
 	json_error_t error;
 	json_t *root = json_loadb(rkmessage->payload, rkmessage->len, 0, &error);
 	if (!root)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "JSON parsing error: %s\n", error.text);
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "JSON parsing error: %s\n", error.text);
 		return;
 	}
 
@@ -187,13 +212,13 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	json_t *type = json_object_get(root, "type");
 	if (!type || !json_is_string(type))
 	{
-		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "Key 'type' not found or not a string\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Key 'type' not found or not a string\n");
 		goto cleanup;
 	}
 	type_str = json_string_value(type);
 	if (!type_str)
 	{
-		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to get 'type' value as string\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Failed to get 'type' value as string\n");
 		goto cleanup;
 	}
 
@@ -206,7 +231,7 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 		createdBlockedListKey = "deletedBlockedList";
 	else
 	{
-		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
 		goto cleanup;
 	}
 
@@ -214,7 +239,7 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	json_t *createdBlockedList = json_object_get(root, createdBlockedListKey);
 	if (!createdBlockedList || !json_is_object(createdBlockedList))
 	{
-		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "Key '%s' not found or not an object\n", createdBlockedListKey);
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Key '%s' not found or not an object\n", createdBlockedListKey);
 		goto cleanup;
 	}
 
@@ -225,7 +250,7 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 
 	if (!domain || !json_is_string(domain) || !ip_add || !json_is_string(ip_add) || !id || !json_is_string(id))
 	{
-		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Missing or invalid keys in 'createdBlockedList'\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Missing or invalid keys in 'createdBlockedList'\n");
 		goto cleanup;
 	}
 
@@ -235,7 +260,7 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 
 	if (!domain_str || !ip_str || !id_str)
 	{
-		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "Failed to get values from 'createdBlockedList'\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Failed to get values from 'createdBlockedList'\n");
 		goto cleanup;
 	}
 
@@ -255,13 +280,13 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	}
 	else
 	{
-		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "Unsupported 'type' value: %s\n", type_str);
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Unsupported 'type' value: %s\n", type_str);
 		goto cleanup;
 	}
 
 	if (query_len <= 0 || query_len >= sizeof(sql_query))
 	{
-		logMessage(LOG_LEVEL_WARNING, __FILE__,__LINE__, "SQL query creation error\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "SQL query creation error\n");
 		goto cleanup;
 	}
 
@@ -269,12 +294,12 @@ void msg_consume(rd_kafka_message_t *rkmessage, sqlite3 *db)
 	int sqlite_result = sqlite3_exec(db, sql_query, NULL, 0, &errmsg);
 	if (sqlite_result != SQLITE_OK)
 	{
-		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "SQL error: %s\n", errmsg);
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "SQL error: %s\n", errmsg);
 		sqlite3_free(errmsg);
 	}
 	else
 	{
-		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "%s updated to the database\n", domain_str);
+		logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "%s updated to the database\n", domain_str);
 	}
 
 cleanup:
@@ -282,7 +307,11 @@ cleanup:
 		json_decref(root);
 }
 
-// Function to set up Kafka consumer
+/**
+ * This function creates a Kafka consumer, subscribes to a Kafka topic, opens an SQLite database,
+ * and starts consuming messages from the topic. The consumed messages are then stored in the database.
+ * The function continues to consume messages until the `force_quit` flag is set to true.
+*/
 void run_kafka_consumer()
 {
 	rd_kafka_t *rk;			 // Kafka handle
@@ -294,7 +323,7 @@ void run_kafka_consumer()
 	conf = rd_kafka_conf_new();
 	if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER, NULL, 0) != RD_KAFKA_CONF_OK)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Failed to set Kafka broker configuration\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to set Kafka broker configuration\n");
 		return;
 	}
 
@@ -302,7 +331,7 @@ void run_kafka_consumer()
 	rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, NULL, 0);
 	if (!rk)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Failed to create Kafka consumer\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to create Kafka consumer\n");
 		return;
 	}
 
@@ -310,7 +339,7 @@ void run_kafka_consumer()
 	topic = rd_kafka_topic_new(rk, KAFKA_TOPIC, NULL);
 	if (!topic)
 	{
-		logMessage(LOG_LEVEL_ERROR, __FILE__,__LINE__, "Failed to create Kafka topic object\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to create Kafka topic object\n");
 		rd_kafka_destroy(rk);
 		return;
 	}
@@ -318,7 +347,7 @@ void run_kafka_consumer()
 	// Open SQLite database
 	if (sqlite3_open(db_path, &db) != SQLITE_OK)
 	{
-		logMessage(LOG_LEVEL_ERROR, __FILE__,__LINE__, "Can't open database: %s\n", sqlite3_errmsg(db));
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Can't open database: %s\n", sqlite3_errmsg(db));
 		rd_kafka_topic_destroy(topic);
 		rd_kafka_destroy(rk);
 		return;
@@ -327,7 +356,7 @@ void run_kafka_consumer()
 	// Start consuming messages
 	if (rd_kafka_consume_start(topic, 0, RD_KAFKA_OFFSET_BEGINNING) == -1)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Failed to start consuming messages\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to start consuming messages\n");
 		rd_kafka_topic_destroy(topic);
 		rd_kafka_destroy(rk);
 		sqlite3_close(db);
@@ -353,6 +382,16 @@ void run_kafka_consumer()
 	sqlite3_close(db);
 }
 
+/**
+ * This function configures and starts an Ethernet port with the specified port number.
+ * It sets up the receive (Rx) and transmit (Tx) queues, allocates memory for the queues,
+ * and enables promiscuous mode for the port.
+ *
+ * @param port The port number to initialize.
+ * @param mbuf_pool The memory pool to use for allocating mbufs.
+ * @return 0 on success, a negative value on error.
+ */
+
 static inline int
 port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 {
@@ -377,7 +416,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	retval = rte_eth_dev_info_get(port, &dev_info);
 	if (retval != 0)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__,__LINE__, "Error during getting device (port %u) info: %s\n",
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error during getting device (port %u) info: %s\n",
 				   port, strerror(-retval));
 		return retval;
 	}
@@ -426,7 +465,7 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	if (retval != 0)
 		return retval;
 
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Port %u MAC: %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 "\n",
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Port %u MAC: %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 " %02" PRIx8 "\n",
 			   port, RTE_ETHER_ADDR_BYTES(&addr));
 
 	// SET THE PORT TO PROMOCIOUS
@@ -437,23 +476,40 @@ port_init(uint16_t port, struct rte_mempool *mbuf_pool)
 	return 0;
 }
 
+/**
+ * Opens a file in append mode and returns a file pointer.
+ *
+ * @param filename The name of the file to be opened.
+ * @return A file pointer to the opened file.
+ * @throws An error message and exits the program if the file cannot be opened.
+ */
 static FILE *open_file(const char *filename)
 {
 	FILE *f = fopen(filename, "a+");
 	if (f == NULL)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error opening file %s\n", filename);
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error opening file %s\n", filename);
 		rte_exit(EXIT_FAILURE, "Error opening file %s\n", filename);
 	}
 	return f;
 }
+
+
+/**
+ * This function resets the statistics data for all Ethernet ports by setting
+ * the memory to zero.
+ */
 static void clear_stats(void)
 {
 	memset(port_statistics, 0, RTE_MAX_ETHPORTS * sizeof(struct port_statistics_data));
 }
-/*
- * The print statistics function
- * Print the statistics to the console
+
+/**
+ * This function prints the statistics for each port, including the number of packets sent and received,
+ * packet sizes, dropped packets, TCP RST counts, throughput, and packet errors.
+ * The statistics are refreshed periodically based on the TIMER_PERIOD_STATS value.
+ *
+ * @param last_run_print A pointer to the last time the statistics were printed.
  */
 static void
 print_stats(int *last_run_print)
@@ -511,11 +567,24 @@ print_stats(int *last_run_print)
 	}
 }
 
+/**
+ * This function writes the header row to the specified file in CSV format.
+ * The header row contains the names of the different statistics fields.
+ *
+ * @param f The file pointer to write the header to.
+ */
 static void print_stats_csv_header(FILE *f)
 {
 	fprintf(f, "ps_id,rstClient_http,rstServer_http,rstClient_tls,rstServer_tls,rx_i_http_count,tx_i_http_count,rx_i_http_size,tx_i_http_size,rx_i_http_drop,rx_i_http_error,tx_i_http_error,rx_i_http_mbuf,rx_i_tls_count,tx_i_tls_count,rx_i_tls_size,tx_i_tls_size,rx_i_tls_drop,rx_i_tls_error,tx_i_tls_error,rx_i_tls_mbuf,rx_o_http_count,tx_o_http_count,rx_o_http_size,tx_o_http_size,rx_o_http_drop,rx_o_http_error,tx_o_http_error,rx_o_http_mbuf,rx_o_tls_count,tx_o_tls_count,rx_o_tls_size,tx_o_tls_size,rx_o_tls_drop,rx_o_tls_error,tx_o_tls_error,rx_o_tls_mbuf,time,throughput_i_http, throughput_i_tls, throughput_o_http,throughput_o_tls\n"); // Header row
 }
 
+/**
+ * This function takes a file pointer and a timestamp as input and writes the statistics data to the CSV file.
+ * The statistics data includes various metrics such as packet counts, packet sizes, errors, and throughput for different ports.
+ *
+ * @param f         The file pointer to the CSV file.
+ * @param timestamp The timestamp to be included in the CSV file.
+ */
 static void print_stats_csv(FILE *f, char *timestamp)
 {
 	// Write data to the CSV file
@@ -527,16 +596,17 @@ static void print_stats_csv(FILE *f, char *timestamp)
 			timestamp, port_statistics[0].throughput, port_statistics[1].throughput, port_statistics[2].throughput, port_statistics[3].throughput);
 }
 
-/*
- * The load configuration file function
- * Load the configuration file
+/**
+ * This function reads the configuration file located at "config/config.cfg" and sets the values of various variables based on the key-value pairs in the file.
+ * The function expects the configuration file to be in the format "key = value", where the key is a string and the value is an integer or a string.
  */
+
 int load_config_file()
 {
 	FILE *configFile = fopen("config/config.cfg", "r");
 	if (configFile == NULL)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Cannot open the config file\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Cannot open the config file\n");
 		return 1;
 	}
 
@@ -551,67 +621,67 @@ int load_config_file()
 			if (strcmp(key, "MAX_PACKET_LEN") == 0)
 			{
 				MAX_PACKET_LEN = atoi(value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "MAX_PACKET_LEN: %d\n", MAX_PACKET_LEN);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "MAX_PACKET_LEN: %d\n", MAX_PACKET_LEN);
 			}
 			else if (strcmp(key, "RX_RING_SIZE") == 0)
 			{
 				RX_RING_SIZE = atoi(value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "RX_RING_SIZE: %d\n", RX_RING_SIZE);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "RX_RING_SIZE: %d\n", RX_RING_SIZE);
 			}
 			else if (strcmp(key, "TX_RING_SIZE") == 0)
 			{
 				TX_RING_SIZE = atoi(value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "TX_RING_SIZE: %d\n", TX_RING_SIZE);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "TX_RING_SIZE: %d\n", TX_RING_SIZE);
 			}
 			else if (strcmp(key, "NUM_MBUFS") == 0)
 			{
 				NUM_MBUFS = atoi(value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "NUM_MBUFS: %d\n", NUM_MBUFS);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "NUM_MBUFS: %d\n", NUM_MBUFS);
 			}
 			else if (strcmp(key, "MBUF_CACHE_SIZE") == 0)
 			{
 				MBUF_CACHE_SIZE = atoi(value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "MBUF_CACHE_SIZE: %d\n", MBUF_CACHE_SIZE);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "MBUF_CACHE_SIZE: %d\n", MBUF_CACHE_SIZE);
 			}
 			else if (strcmp(key, "BURST_SIZE") == 0)
 			{
 				BURST_SIZE = atoi(value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "BURST_SIZE: %d\n", BURST_SIZE);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "BURST_SIZE: %d\n", BURST_SIZE);
 			}
 			else if (strcmp(key, "MAX_TCP_PAYLOAD_LEN") == 0)
 			{
 				MAX_TCP_PAYLOAD_LEN = atoi(value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "MAX_TCP_PAYLOAD_LEN: %d\n", MAX_TCP_PAYLOAD_LEN);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "MAX_TCP_PAYLOAD_LEN: %d\n", MAX_TCP_PAYLOAD_LEN);
 			}
 			else if (strcmp(key, "STAT_FILE") == 0)
 			{
 				strcpy(STAT_FILE, value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "STAT_FILE: %s\n", STAT_FILE);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "STAT_FILE: %s\n", STAT_FILE);
 			}
 			else if (strcmp(key, "STAT_FILE_EXT") == 0)
 			{
 				strcpy(STAT_FILE_EXT, value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "STAT_FILE_EXT: %s\n", STAT_FILE_EXT);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "STAT_FILE_EXT: %s\n", STAT_FILE_EXT);
 			}
 			else if (strcmp(key, "TIMER_PERIOD_STATS") == 0)
 			{
 				TIMER_PERIOD_STATS = atoi(value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "TIMER_PERIOD_STATS: %d\n", TIMER_PERIOD_STATS);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "TIMER_PERIOD_STATS: %d\n", TIMER_PERIOD_STATS);
 			}
 			else if (strcmp(key, "TIMER_PERIOD_SEND") == 0)
 			{
 				TIMER_PERIOD_SEND = atoi(value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "TIMER_PERIOD_SEND: %d\n", TIMER_PERIOD_SEND);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "TIMER_PERIOD_SEND: %d\n", TIMER_PERIOD_SEND);
 			}
 			else if (strcmp(key, "ID_PS") == 0)
 			{
 				strcpy(PS_ID, value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "PS ID: %s\n", PS_ID);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "PS ID: %s\n", PS_ID);
 			}
 			else if (strcmp(key, "HOSTNAME") == 0)
 			{
 				strcpy(HOSTNAME, value);
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "HOSTNAME: %s\n", HOSTNAME);
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "HOSTNAME: %s\n", HOSTNAME);
 			}
 		}
 	}
@@ -620,28 +690,47 @@ int load_config_file()
 	return 0;
 }
 
-/*
- * The termination signal handler
- * Handle the termination signal
- * @param signum
- * 	the signal number
+
+/**
+ * This function is responsible for handling the SIGINT and SIGTERM signals. When either of these signals is received,
+ * the function logs a message indicating the signal received and sets the `force_quit` flag to true, indicating that
+ * the program should prepare to exit.
  */
 static void
 signal_handler(int signum)
 {
 	if (signum == SIGINT || signum == SIGTERM)
 	{
-		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Signal %d received, preparing to exit...\n", signum);
+		logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Signal %d received, preparing to exit...\n", signum);
 		force_quit = true;
 	}
 }
+
+/**
+ * This function is used as a callback for the CURLOPT_WRITEFUNCTION option in a libcurl request.
+ * It is called by libcurl whenever response data is received from the server.
+ *
+ * @param contents A pointer to the response data received from the server.
+ * @param size The size of each element in the response data.
+ * @param nmemb The number of elements in the response data.
+ * @param userp A pointer to user-defined data passed to the CURLOPT_WRITEDATA option.
+ *
+ * @return The total number of bytes written.
+ */
 size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
 	size_t real_size = size * nmemb;
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Response: %.*s \n", (int)real_size, (char *)contents);
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Response: %.*s \n", (int)real_size, (char *)contents);
 	return real_size;
 }
 
+/**
+ * This function iterates over the `db_hit_count` array and creates a JSON object for each entry
+ * with a non-zero hit count. The JSON object contains the entry's ID and hit count. The JSON
+ * objects are then appended to the provided JSON array.
+ *
+ * @param jsonArray A pointer to the JSON array to populate.
+ */
 static void populate_json_hitcount(json_t *jsonArray)
 {
 	for (int i = 0; i < CACHE_SIZE; i++)
@@ -659,6 +748,14 @@ static void populate_json_hitcount(json_t *jsonArray)
 	}
 	memset(db_hit_count, 0, sizeof(db_hit_count));
 }
+/**
+ * This function takes a JSON array and a timestamp as input and populates a JSON object with various statistics data.
+ * The statistics data includes counts, sizes, errors, drops, and throughput for different types of HTTP and TLS traffic.
+ * The populated JSON object is then appended to the JSON array.
+ *
+ * @param jsonArray A pointer to the JSON array to which the populated JSON object will be appended.
+ * @param timestamp A pointer to the timestamp string to be included in the JSON object.
+ */
 
 static void
 populate_json_stats(json_t *jsonArray, char *timestamp)
@@ -718,7 +815,12 @@ populate_json_stats(json_t *jsonArray, char *timestamp)
 	// Append the JSON object to the JSON array
 	json_array_append(jsonArray, jsonObject);
 }
-
+/**
+ * This function retrieves statistics for each port using the `rte_eth_stats_get()` function.
+ * It then updates the statistics in the `port_statistics` array based on the retrieved values.
+ * After updating the statistics, it clears the statistics for each port using the `rte_eth_stats_reset()` function.
+ * Finally, it calculates the throughput for each port by dividing the received or transmitted size by the timer period.
+ */
 static void
 collect_stats()
 {
@@ -785,15 +887,14 @@ collect_stats()
 	port_statistics[2].throughput = port_statistics[2].tx_size / TIMER_PERIOD_STATS;
 	port_statistics[3].throughput = port_statistics[3].tx_size / TIMER_PERIOD_STATS;
 }
-/*
- * The print statistics file function
- * Print the statistics to the file
- * @param last_run_stat
- * 	the last run statistics
- * @param last_run_file
- * 	the last run file
- * @param f_stat
- * 	the file pointer
+/**
+ * This function prints statistics to a file at regular intervals and also populates a JSON array with the statistics.
+ * The statistics are printed in CSV format with a timestamp indicating the current time.
+ * The file name for the statistics file is generated based on the current time.
+ * @param last_run_stat A pointer to the last run time in seconds.
+ * @param last_run_file A pointer to the last run time in minutes.
+ * @param f_stat A pointer to the statistics file.
+ * @param jsonArray A pointer to the JSON array to populate with the statistics.
  */
 static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_stat, json_t *jsonArray)
 {
@@ -846,7 +947,7 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 
 		// convert the time to string
 		strftime(time_str, sizeof(time_str), format, tm_info);
-		
+
 		// print out the stats to csv
 		print_stats_csv(*f_stat, time_str);
 		populate_json_stats(jsonArray, time_str);
@@ -876,13 +977,18 @@ static void print_stats_file(int *last_run_stat, int *last_run_file, FILE **f_st
 		*last_run_stat = current_sec;
 	}
 }
-
+/**
+ * Sends the hit count data to the server.
+ *
+ * @param jsonArray A pointer to the JSON array containing the hit count data.
+*/
 static void send_hitcount_to_server(json_t *jsonArray)
 {
-	if(countFlag == 1){
-		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Count Exceeds Threshold, Failed to Send\n");
+	if (countFlag == 1)
+	{
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Count Exceeds Threshold, Failed to Send\n");
 		if (jsonArray)
-		json_array_clear(jsonArray);
+			json_array_clear(jsonArray);
 		countFlag = 0;
 		return;
 	}
@@ -899,14 +1005,14 @@ static void send_hitcount_to_server(json_t *jsonArray)
 
 	if (!curl)
 	{
-		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to initialize CURL\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Failed to initialize CURL\n");
 		goto cleanup;
 	}
 
 	headers = curl_slist_append(headers, "Content-Type: application/json");
 	if (!headers)
 	{
-		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to create headers\n");
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Failed to create headers\n");
 		goto cleanup;
 	}
 
@@ -919,13 +1025,13 @@ static void send_hitcount_to_server(json_t *jsonArray)
 	res = curl_easy_perform(curl);
 	if (res != CURLE_OK)
 	{
-		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-		logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+		logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Send Count failed: %s\n", curl_easy_strerror(res));
 		goto cleanup;
 	}
 	else
 	{
-		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
+		logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Send Count Success: %s\n", jsonString);
 	}
 
 cleanup:
@@ -944,13 +1050,18 @@ cleanup:
 	curl_global_cleanup();
 }
 
+/**
+ * Sends statistics to the server.
+ *
+ * @param jsonArray A pointer to the JSON array containing the statistics to be sent.
+ */
 static void
 send_stats_to_server(json_t *jsonArray)
 {
 	CURL *curl;
 	CURLcode res;
 	struct curl_slist *headers = curl_slist_append(headers, "Content-Type: application/json");
-	
+
 	char *jsonString = json_dumps(jsonArray, 0);
 	char url[256];
 
@@ -972,7 +1083,7 @@ send_stats_to_server(json_t *jsonArray)
 		if (res != CURLE_OK)
 		{
 			fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-			logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Send Stats failed: %s\n", curl_easy_strerror(res));
+			logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Send Stats failed: %s\n", curl_easy_strerror(res));
 		}
 
 		curl_slist_free_all(headers);
@@ -984,6 +1095,15 @@ send_stats_to_server(json_t *jsonArray)
 	curl_global_cleanup();
 }
 
+/**
+ * This function checks the current time and sends the statistics to the server
+ * if the current minute is divisible by `TIMER_PERIOD_SEND` and is different
+ * from the last time the statistics were sent.
+ *
+ * @param jsonArray A pointer to a JSON array containing the statistics data.
+ * @param last_run_send A pointer to an integer representing the last minute
+ *                      the statistics were sent.
+ */
 static void
 send_stats(json_t *jsonArray, int *last_run_send)
 {
@@ -999,12 +1119,18 @@ send_stats(json_t *jsonArray, int *last_run_send)
 	if (current_min % TIMER_PERIOD_SEND == 0 && current_min != *last_run_send)
 	{
 		// send the statistics to the server
-		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Sending statistics to server\n");
+		logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Sending statistics to server\n");
 		send_stats_to_server(jsonArray);
 		*last_run_send = current_min;
 	}
 }
 
+/**
+ * This function extracts the domain name from an HTTPS packet.
+ *
+ * @param pkt A pointer to the packet from which to extract the domain name.
+ * @return A pointer to the extracted domain name.
+ */
 static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 {
 	// Extract Ethernet header
@@ -1072,12 +1198,12 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 				extractedName[nameIndex] = (char)tls_payload[counter + 9 + i];
 				nameIndex++;
 			}
-			extractedName[nameIndex] = '\0'; 
+			extractedName[nameIndex] = '\0';
 
 			// Dynamically allocate memory for the string to return
 			char *result = (char *)malloc(strlen(extractedName) + 1);
 			strcpy(result, extractedName);
-			
+
 			return result;
 		}
 		else
@@ -1087,6 +1213,13 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 		}
 	}
 }
+
+/**
+ * This function extracts the domain name from an HTTP packet.
+ *
+ * @param pkt A pointer to the packet from which to extract the domain name.
+ * @return A pointer to the extracted domain name.
+ */
 static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 {
 	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(pkt, struct rte_ether_hdr *);
@@ -1144,89 +1277,106 @@ static inline char *extractDomainfromHTTP(struct rte_mbuf *pkt)
 	return NULL; // Return NULL if the HTTP host is not found or an error occurs.
 }
 
+/**
+ * This function extracts the domain name from a packet based on the protocol.
+ *
+ * @param pkt A pointer to the packet from which to extract the domain name.
+ * @param protocol The protocol of the packet (HTTP or HTTPS).
+ * @return A pointer to the extracted domain name.
+ */
 static inline void reset_tcp_client(struct rte_mbuf *rx_pkt)
 {
-    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
+	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
 
-    // Check if it's an IPv4 packet
-    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-    {
-        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-        struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
+	// Check if it's an IPv4 packet
+	if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
+	{
+		struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+		struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
 
-        // Swap MAC addresses
-        struct rte_ether_addr tmp_mac;
-        rte_ether_addr_copy(&eth_hdr->dst_addr, &tmp_mac);
-        rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
-        rte_ether_addr_copy(&tmp_mac, &eth_hdr->src_addr);
+		// Swap MAC addresses
+		struct rte_ether_addr tmp_mac;
+		rte_ether_addr_copy(&eth_hdr->dst_addr, &tmp_mac);
+		rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
+		rte_ether_addr_copy(&tmp_mac, &eth_hdr->src_addr);
 
-        // Swap IP addresses
-        uint32_t tmp_ip = ip_hdr->src_addr;
-        ip_hdr->src_addr = ip_hdr->dst_addr;
-        ip_hdr->dst_addr = tmp_ip;
+		// Swap IP addresses
+		uint32_t tmp_ip = ip_hdr->src_addr;
+		ip_hdr->src_addr = ip_hdr->dst_addr;
+		ip_hdr->dst_addr = tmp_ip;
 
-        // Swap TCP ports
-        uint16_t tmp_port = tcp_hdr->src_port;
-        tcp_hdr->src_port = tcp_hdr->dst_port;
-        tcp_hdr->dst_port = tmp_port;
+		// Swap TCP ports
+		uint16_t tmp_port = tcp_hdr->src_port;
+		tcp_hdr->src_port = tcp_hdr->dst_port;
+		tcp_hdr->dst_port = tmp_port;
 
-        // Set TCP header length
-        tcp_hdr->data_off = (sizeof(struct rte_tcp_hdr) / 4) << 4; // Divide by 4 for 32-bit words
+		// Set TCP header length
+		tcp_hdr->data_off = (sizeof(struct rte_tcp_hdr) / 4) << 4; // Divide by 4 for 32-bit words
 
-        // Set TCP flags to reset (RST)
-        tcp_hdr->tcp_flags = RTE_TCP_RST;
+		// Set TCP flags to reset (RST)
+		tcp_hdr->tcp_flags = RTE_TCP_RST;
 
-        ip_hdr->total_length = rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
+		ip_hdr->total_length = rte_cpu_to_be_16(sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 
-        // Extract the acknowledgment number from the TCP header
-        uint32_t ack_number = rte_be_to_cpu_32(tcp_hdr->recv_ack);
+		// Extract the acknowledgment number from the TCP header
+		uint32_t ack_number = rte_be_to_cpu_32(tcp_hdr->recv_ack);
 
-        // Set the sequence number in the TCP header to the received acknowledgment number
-        tcp_hdr->sent_seq = rte_cpu_to_be_32(ack_number);
+		// Set the sequence number in the TCP header to the received acknowledgment number
+		tcp_hdr->sent_seq = rte_cpu_to_be_32(ack_number);
 
-        tcp_hdr->recv_ack = 0;
+		tcp_hdr->recv_ack = 0;
 
-        // Calculate and set the new IP and TCP checksums (optional)
-        tcp_hdr->cksum = 0;
-        tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
+		// Calculate and set the new IP and TCP checksums (optional)
+		tcp_hdr->cksum = 0;
+		tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
 
-        ip_hdr->hdr_checksum = 0;
-        ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
-    }
+		ip_hdr->hdr_checksum = 0;
+		ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
+	}
 }
 
+/**
+ * This function resets the TCP server by sending a TCP RST packet in response to a received packet.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 static inline void reset_tcp_server(struct rte_mbuf *rx_pkt)
 {
-    struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
+	struct rte_ether_hdr *eth_hdr = rte_pktmbuf_mtod(rx_pkt, struct rte_ether_hdr *);
 
-    if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
-    {
-        struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-        struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
+	if (eth_hdr->ether_type == rte_cpu_to_be_16(RTE_ETHER_TYPE_IPV4))
+	{
+		struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
+		struct rte_tcp_hdr *tcp_hdr = (struct rte_tcp_hdr *)(ip_hdr + 1);
 
-        // Increment the sequence number by 1
-        tcp_hdr->sent_seq = rte_cpu_to_be_32(rte_be_to_cpu_32(tcp_hdr->sent_seq) + 1);
+		// Increment the sequence number by 1
+		tcp_hdr->sent_seq = rte_cpu_to_be_32(rte_be_to_cpu_32(tcp_hdr->sent_seq) + 1);
 
-        // Set acknowledgment number to 0
-        tcp_hdr->recv_ack = rte_cpu_to_be_32(0);
+		// Set acknowledgment number to 0
+		tcp_hdr->recv_ack = rte_cpu_to_be_32(0);
 
-        // Set TCP flags to reset (RST)
-        tcp_hdr->tcp_flags = RTE_TCP_RST;
+		// Set TCP flags to reset (RST)
+		tcp_hdr->tcp_flags = RTE_TCP_RST;
 
-        // Set TCP header length
-        tcp_hdr->data_off = (sizeof(struct rte_tcp_hdr) / 4) << 4; // Divide by 4 for 32-bit words
+		// Set TCP header length
+		tcp_hdr->data_off = (sizeof(struct rte_tcp_hdr) / 4) << 4; // Divide by 4 for 32-bit words
 
-        // Set IP total length to 40 (TCP RST packets have no payload)
-        ip_hdr->total_length = rte_cpu_to_be_16(40);
+		// Set IP total length to 40 (TCP RST packets have no payload)
+		ip_hdr->total_length = rte_cpu_to_be_16(40);
 
-        // Calculate and set the new IP and TCP checksums
-        ip_hdr->hdr_checksum = 0;
-        tcp_hdr->cksum = 0;
-        ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
-        tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
-    }
+		// Calculate and set the new IP and TCP checksums
+		ip_hdr->hdr_checksum = 0;
+		tcp_hdr->cksum = 0;
+		ip_hdr->hdr_checksum = rte_ipv4_cksum(ip_hdr);
+		tcp_hdr->cksum = rte_ipv4_udptcp_cksum(ip_hdr, tcp_hdr);
+	}
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 void countStrings(char strings[CACHE_SIZE][MAX_STRINGS], int numStrings)
 {
 
@@ -1254,7 +1404,7 @@ void countStrings(char strings[CACHE_SIZE][MAX_STRINGS], int numStrings)
 				break;
 			}
 		}
-		
+
 		// If the string wasn't found and no empty slots are available, stop
 		if (!found)
 		{
@@ -1262,6 +1412,13 @@ void countStrings(char strings[CACHE_SIZE][MAX_STRINGS], int numStrings)
 		}
 	}
 }
+
+/**
+ * Calculates the sum of hit counts and sends the data to the server at a specified time interval.
+ *
+ * @param last_run_count Pointer to the last run count value.
+ * @param jsonArray Pointer to the JSON array object.
+ */
 
 static void sum_count(int *last_run_count, json_t *jsonArray)
 {
@@ -1286,6 +1443,11 @@ static void sum_count(int *last_run_count, json_t *jsonArray)
 	}
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 void init_database()
 {
 	// Check if the database file exists
@@ -1295,7 +1457,7 @@ void init_database()
 		if (sqlite3_open(db_path, &db) != SQLITE_OK)
 		{
 			// Handle database opening error
-			logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error opening the database: %s\n", sqlite3_errmsg(db));
+			logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error opening the database: %s\n", sqlite3_errmsg(db));
 			// You may want to exit or return an error code here
 		}
 	}
@@ -1305,7 +1467,7 @@ void init_database()
 		if (sqlite3_open(db_path, &db) != SQLITE_OK)
 		{
 			// Handle database creation error
-			logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error creating the database: %s\n", sqlite3_errmsg(db));
+			logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error creating the database: %s\n", sqlite3_errmsg(db));
 			// You may want to exit or return an error code here
 		}
 	}
@@ -1326,29 +1488,33 @@ void init_database()
 				char *create_table_sql = "CREATE TABLE policies (id TEXT PRIMARY KEY, ip_address TEXT, domain TEXT);";
 				if (sqlite3_exec(db, create_table_sql, NULL, 0, NULL) != SQLITE_OK)
 				{
-					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error creating the 'policies' table: %s\n", sqlite3_errmsg(db));
+					logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error creating the 'policies' table: %s\n", sqlite3_errmsg(db));
 					// You may want to exit or return an error code here
 				}
 				else
 				{
-					logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Created 'policies' table.\n");
+					logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Created 'policies' table.\n");
 				}
 			}
 			else
 			{
-				logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "'policies' table already exists.\n");
+				logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "'policies' table already exists.\n");
 			}
 		}
 	}
 	else
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error checking for 'policies' table: %s\n", sqlite3_errmsg(db));
-		
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error checking for 'policies' table: %s\n", sqlite3_errmsg(db));
 	}
 
 	sqlite3_finalize(stmt); // Finalize the prepared statement
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 void delete_database()
 {
 	// Close the database if it's open
@@ -1361,13 +1527,18 @@ void delete_database()
 	// Delete the database file
 	if (remove(db_path) != 0)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error deleting the database file.\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error deleting the database file.\n");
 		return;
 	}
 
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Database file deleted successfully.\n");
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Database file deleted successfully.\n");
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 static inline bool ip_checker(struct rte_mbuf *rx_pkt)
 {
 	if (!db)
@@ -1450,13 +1621,18 @@ unsigned int hash_function(const char *str)
 	return hash % CACHE_SIZE;
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 static inline bool domain_checker(char *domain)
 {
-	
-	  if (domain == NULL || domain[0] == '\0')
-    {
-        return false;
-    }
+
+	if (domain == NULL || domain[0] == '\0')
+	{
+		return false;
+	}
 
 	// Use a hash table for faster lookup in the cache
 	unsigned int hash = hash_function(domain);
@@ -1469,11 +1645,13 @@ static inline bool domain_checker(char *domain)
 			{
 				strncpy(hitCount[hitCounter], domain_cache[hash].id, sizeof(domain_cache[hash].id));
 				hitCounter++;
-			}else{
-				countFlag = 1;
-				logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to update Hitcount\n");
 			}
-			
+			else
+			{
+				countFlag = 1;
+				logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Failed to update Hitcount\n");
+			}
+
 			return true;
 		}
 		hash = (hash + 1) % CACHE_SIZE; // Linear probing for collision resolution
@@ -1524,9 +1702,11 @@ static inline bool domain_checker(char *domain)
 		{
 			strncpy(hitCount[hitCounter], id, sizeof(id));
 			hitCounter++;
-		}else{
+		}
+		else
+		{
 			countFlag = 1;
-			logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Failed to update Hitcount\n");
+			logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Failed to update Hitcount\n");
 		}
 
 		return true;
@@ -1535,6 +1715,11 @@ static inline bool domain_checker(char *domain)
 	return false;
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 static inline void
 lcore_stats_process(void)
 {
@@ -1543,13 +1728,13 @@ lcore_stats_process(void)
 	int last_run_file = 0; // lastime statistics printed to file
 	int last_run_send = 0;
 	int last_run_print = 0;
-	int last_run_hitcount = 0;						 // lastime statistics sent to server
-		
-	FILE *f_stat = NULL;							 // File pointer for statistics
+	int last_run_hitcount = 0; // lastime statistics sent to server
+
+	FILE *f_stat = NULL; // File pointer for statistics
 	json_t *jsonStats = json_array();
 	json_t *jsonHitcount = json_array(); // JSON array for statistics
 
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Starting stats process in %d\n", rte_lcore_id());
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Starting stats process in %d\n", rte_lcore_id());
 
 	while (!force_quit)
 	{
@@ -1564,6 +1749,11 @@ lcore_stats_process(void)
 	}
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 static inline void
 lcore_http_process(void)
 {
@@ -1576,12 +1766,12 @@ lcore_http_process(void)
 	if (rte_eth_dev_socket_id(port) >= 0 &&
 		rte_eth_dev_socket_id(port) !=
 			(int)rte_socket_id())
-		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
-									   "polling thread.\n\tPerformance will "
-									   "not be optimal.\n",
+		logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
+													   "polling thread.\n\tPerformance will "
+													   "not be optimal.\n",
 				   port);
 
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Core %u forwarding packets. [Ctrl+C to quit]\n",
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Core %u forwarding packets. [Ctrl+C to quit]\n",
 			   rte_lcore_id());
 
 	struct rte_mbuf *rx_bufs[BURST_SIZE];
@@ -1590,7 +1780,7 @@ lcore_http_process(void)
 	{
 
 		/* Get a burst of RX packets from the first port of the pair. */
-		
+
 		const uint16_t rx_count = rte_eth_rx_burst(0, 0, rx_bufs, BURST_SIZE);
 
 		for (uint16_t i = 0; i < rx_count; i++)
@@ -1603,13 +1793,13 @@ lcore_http_process(void)
 				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_client == NULL)
 				{
-					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error copying packet to RST Client\n");
+					logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error copying packet to RST Client\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
 				}
 				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_server == NULL)
 				{
-					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error copying packet to RST Server\n");
+					logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error copying packet to RST Server\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet
 				}
 
@@ -1621,7 +1811,7 @@ lcore_http_process(void)
 				const uint16_t rst_client_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_client, 1);
 				if (rst_client_tx_count == 0)
 				{
-					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error sending packet to client\n");
+					logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error sending packet to client\n");
 					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
 				}
 				else
@@ -1632,7 +1822,7 @@ lcore_http_process(void)
 				const uint16_t rst_server_tx_count = rte_eth_tx_burst(2, 0, &rst_pkt_server, 1);
 				if (rst_server_tx_count == 0)
 				{
-					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error sending packet to server\n");
+					logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error sending packet to server\n");
 					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
 				}
 				else
@@ -1642,19 +1832,21 @@ lcore_http_process(void)
 			}
 
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
-			
 		}
-		
 	}
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 static inline void
 lcore_https_process(void)
 {
 	// initialization
 	char *extractedName;
 	uint16_t port;
-
 
 	/*
 	 * Check that the port is on the same NUMA node as the polling thread
@@ -1664,12 +1856,12 @@ lcore_https_process(void)
 	if (rte_eth_dev_socket_id(port) >= 0 &&
 		rte_eth_dev_socket_id(port) !=
 			(int)rte_socket_id())
-		logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
-									   "polling thread.\n\tPerformance will "
-									   "not be optimal.\n",
+		logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "WARNING, port %u is on remote NUMA node to "
+													   "polling thread.\n\tPerformance will "
+													   "not be optimal.\n",
 				   port);
 
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Core %u forwarding packets. [Ctrl+C to quit]\n",
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Core %u forwarding packets. [Ctrl+C to quit]\n",
 			   rte_lcore_id());
 
 	struct rte_mbuf *rx_bufs[BURST_SIZE];
@@ -1678,7 +1870,7 @@ lcore_https_process(void)
 	{
 
 		/* Get a burst of RX packets from the first port of the pair. */
-		
+
 		const uint16_t rx_count = rte_eth_rx_burst(1, 0, rx_bufs, BURST_SIZE);
 
 		for (uint16_t i = 0; i < rx_count; i++)
@@ -1691,13 +1883,13 @@ lcore_https_process(void)
 				struct rte_mbuf *rst_pkt_client = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_client == NULL)
 				{
-					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error copying packet to RST Client\n");
+					logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error copying packet to RST Client\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet                // Skip this packet
 				}
 				struct rte_mbuf *rst_pkt_server = rte_pktmbuf_copy(rx_pkt, rx_pkt->pool, 0, sizeof(struct rte_ether_hdr) + sizeof(struct rte_ipv4_hdr) + sizeof(struct rte_tcp_hdr));
 				if (rst_pkt_server == NULL)
 				{
-					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error copying packet to RST Server\n");
+					logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error copying packet to RST Server\n");
 					rte_pktmbuf_free(rx_pkt); // Free the original packet
 				}
 
@@ -1709,7 +1901,7 @@ lcore_https_process(void)
 				const uint16_t rst_client_tx_count = rte_eth_tx_burst(3, 0, &rst_pkt_client, 1);
 				if (rst_client_tx_count == 0)
 				{
-					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error sending packet to client\n");
+					logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error sending packet to client\n");
 					rte_pktmbuf_free(rst_pkt_client); // Free the modified packet
 				}
 				else
@@ -1720,7 +1912,7 @@ lcore_https_process(void)
 				const uint16_t rst_server_tx_count = rte_eth_tx_burst(3, 0, &rst_pkt_server, 1);
 				if (rst_server_tx_count == 0)
 				{
-					logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error sending packet to server\n");
+					logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error sending packet to server\n");
 					rte_pktmbuf_free(rst_pkt_server); // Free the modified packet
 				}
 				else
@@ -1730,11 +1922,15 @@ lcore_https_process(void)
 			}
 
 			rte_pktmbuf_free(rx_pkt); // Free the original packet
-			
 		}
 	}
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 static inline void
 lcore_heartbeat_process()
 {
@@ -1764,8 +1960,7 @@ lcore_heartbeat_process()
 
 			sprintf(post_fields, "[{\"ps_id\": \"%s\", \"time\": \"%s\"}]", PS_ID, timestamp_str);
 
-			
-			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Post Fields : %s\n", post_fields);
+			logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Post Fields : %s\n", post_fields);
 			curl_easy_setopt(curl, CURLOPT_URL, url);
 			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_fields);
 			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -1776,7 +1971,7 @@ lcore_heartbeat_process()
 
 			if (res != CURLE_OK)
 			{
-				logMessage(LOG_LEVEL_WARNING,__FILE__, __LINE__, "Heartbeat failed: %s\n", curl_easy_strerror(res));
+				logMessage(LOG_LEVEL_WARNING, __FILE__, __LINE__, "Heartbeat failed: %s\n", curl_easy_strerror(res));
 			}
 			sleep(5);
 		}
@@ -1788,12 +1983,22 @@ lcore_heartbeat_process()
 	curl_global_cleanup();
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 static inline void
 lcore_sync_database()
 {
 	run_kafka_consumer();
 }
 
+/**
+ * This function is responsible for handling the received packets.
+ *
+ * @param rx_pkt A pointer to the received packet.
+ */
 int main(int argc, char *argv[])
 {
 	struct rte_mempool *mbuf_pool;
@@ -1805,17 +2010,17 @@ int main(int argc, char *argv[])
 	// load the config file
 	if (load_config_file())
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Cannot load the config file\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Cannot load the config file\n");
 		rte_exit(EXIT_FAILURE, "Cannot load the config file\n");
 	}
 
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Configuration File Successfully Updated\n");
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Configuration File Successfully Updated\n");
 
 	// Initializion the Environment Abstraction Layer (EAL)
 	int ret = rte_eal_init(argc, argv);
 	if (ret < 0)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error with EAL initialization\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error with EAL initialization\n");
 		rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
 	}
 
@@ -1829,15 +2034,15 @@ int main(int argc, char *argv[])
 
 	// clean the data
 	memset(port_statistics, 0, 32 * sizeof(struct port_statistics_data));
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Port Statistic Cleared\n");
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Port Statistic Cleared\n");
 
 	// count the number of ports to send and receive
-nb_ports = rte_eth_dev_count_avail();
-if (nb_ports != 4)
-{
-    logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Error: number of ports must be 4\n");
-    rte_exit(EXIT_FAILURE, "Error: number of ports must be 4\n");
-}
+	nb_ports = rte_eth_dev_count_avail();
+	if (nb_ports != 4)
+	{
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Error: number of ports must be 4\n");
+		rte_exit(EXIT_FAILURE, "Error: number of ports must be 4\n");
+	}
 
 	// allocates the mempool to hold the mbufs
 	mbuf_pool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports,
@@ -1846,30 +2051,30 @@ if (nb_ports != 4)
 	// check the mempool allocation
 	if (mbuf_pool == NULL)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Cannot create mbuf pool\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Cannot create mbuf pool\n");
 		rte_exit(EXIT_FAILURE, "Cannot create mbuf pool\n");
 	}
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Successfully Created Mbuf Pool\n");
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Successfully Created Mbuf Pool\n");
 
 	// initializing ports
 	RTE_ETH_FOREACH_DEV(portid)
 	if (port_init(portid, mbuf_pool) != 0)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "Cannot init port %" PRIu16 "\n", portid);
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Cannot init port %" PRIu16 "\n", portid);
 		rte_exit(EXIT_FAILURE, "Cannot init port %" PRIu16 "\n", portid);
 	}
 
 	// count the number of lcore
 	if (rte_lcore_count() < 5)
 	{
-		logMessage(LOG_LEVEL_ERROR,__FILE__, __LINE__, "lcore must be more than equal 4\n");
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "lcore must be more than equal 4\n");
 		rte_exit(EXIT_FAILURE, "lcore must be more than equal 4\n");
 	}
 
 	RTE_LCORE_FOREACH_WORKER(lcore_id)
 	{
 		if (lcore_id == (unsigned int)lcore_https ||
-		lcore_id == (unsigned int)lcore_http ||
+			lcore_id == (unsigned int)lcore_http ||
 			lcore_id == (unsigned int)lcore_stats ||
 			lcore_id == (unsigned int)lcore_db)
 		{
@@ -1878,49 +2083,49 @@ if (nb_ports != 4)
 		if (lcore_http == 0)
 		{
 			lcore_http = lcore_id;
-			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "HTTP Core Assigned On Core %u\n", lcore_id);
+			logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "HTTP Core Assigned On Core %u\n", lcore_id);
 			continue;
 		}
 		if (lcore_https == 0)
 		{
 			lcore_https = lcore_id;
-			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "HTTPS Core Assigned On Core %u\n", lcore_id);
+			logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "HTTPS Core Assigned On Core %u\n", lcore_id);
 			continue;
 		}
 		if (lcore_stats == 0)
 		{
 			lcore_stats = lcore_id;
-			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Stats Core Assigned On Core %u\n", lcore_id);
+			logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Stats Core Assigned On Core %u\n", lcore_id);
 			continue;
 		}
 		if (lcore_db == 0)
 		{
 			lcore_db = lcore_id;
-			logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Kafka Core Assigned On Core %u\n", lcore_id);
+			logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Kafka Core Assigned On Core %u\n", lcore_id);
 			continue;
 		}
 	}
 
 	// run the lcore main function
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating HTTP Core\n");
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Initiating HTTP Core\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_http_process,
 						  NULL, lcore_http);
 
-						  logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating HTTPS Core\n");
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Initiating HTTPS Core\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_https_process,
 						  NULL, lcore_https);
 
 	// run the stats
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating Statistic Core\n");
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Initiating Statistic Core\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_stats_process,
 						  NULL, lcore_stats);
 
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating Kafka Core\n");
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Initiating Kafka Core\n");
 	rte_eal_remote_launch((lcore_function_t *)lcore_sync_database,
 						  NULL, lcore_db);
 
 	// run the heartbeat
-	logMessage(LOG_LEVEL_INFO,__FILE__, __LINE__, "Initiating Heartbeat Mechanism\n");
+	logMessage(LOG_LEVEL_INFO, __FILE__, __LINE__, "Initiating Heartbeat Mechanism\n");
 	lcore_heartbeat_process();
 
 	// wait all lcore stopped
