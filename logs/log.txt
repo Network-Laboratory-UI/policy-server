@@ -1,0 +1,181 @@
+[2024-03-27 04:03:43] [INFO] [policyServer.c:1428] - 'policies' table already exists.
+[2024-03-27 04:03:43] [INFO] [policyServer.c:550] - MAX_PACKET_LEN: 1500
+[2024-03-27 04:03:43] [INFO] [policyServer.c:555] - RX_RING_SIZE: 1024
+[2024-03-27 04:03:43] [INFO] [policyServer.c:560] - TX_RING_SIZE: 1024
+[2024-03-27 04:03:43] [INFO] [policyServer.c:565] - NUM_MBUFS: 8191
+[2024-03-27 04:03:43] [INFO] [policyServer.c:570] - MBUF_CACHE_SIZE: 250
+[2024-03-27 04:03:43] [INFO] [policyServer.c:575] - BURST_SIZE: 32
+[2024-03-27 04:03:43] [INFO] [policyServer.c:580] - MAX_TCP_PAYLOAD_LEN: 1024
+[2024-03-27 04:03:43] [INFO] [policyServer.c:605] - PS ID: 778a170c-9823-478c-9f66-8959bf8519d7
+[2024-03-27 04:03:43] [INFO] [policyServer.c:610] - HOSTNAME: http://192.168.0.70:3000
+[2024-03-27 04:03:43] [INFO] [policyServer.c:585] - STAT_FILE: stats/stats
+[2024-03-27 04:03:43] [INFO] [policyServer.c:590] - STAT_FILE_EXT: .csv
+[2024-03-27 04:03:43] [INFO] [policyServer.c:595] - TIMER_PERIOD_STATS: 1
+[2024-03-27 04:03:43] [INFO] [policyServer.c:600] - TIMER_PERIOD_SEND: 1
+[2024-03-27 04:03:43] [INFO] [policyServer.c:2009] - Configuration File Successfully Updated
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2029] - Port Statistic Cleared
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2049] - Successfully Created Mbuf Pool
+[2024-03-27 04:03:44] [INFO] [policyServer.c:394] - Port 0 MAC: ae 50 82 be 45 ac
+[2024-03-27 04:03:44] [INFO] [policyServer.c:394] - Port 1 MAC: 0a 73 10 a5 ce 50
+[2024-03-27 04:03:44] [INFO] [policyServer.c:394] - Port 2 MAC: a6 0f cf 49 1b c2
+[2024-03-27 04:03:44] [INFO] [policyServer.c:394] - Port 3 MAC: 7a 13 31 6f 37 d7
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2078] - HTTP Core Assigned On Core 1
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2084] - HTTPS Core Assigned On Core 2
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2090] - Stats Core Assigned On Core 3
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2096] - Kafka Core Assigned On Core 4
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2102] - Initiating HTTP Core
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2106] - Initiating HTTPS Core
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2111] - Initiating Statistic Core
+[2024-03-27 04:03:44] [INFO] [policyServer.c:1701] - Core 1 forwarding packets. [Ctrl+C to quit]
+[2024-03-27 04:03:44] [INFO] [policyServer.c:1791] - Core 2 forwarding packets. [Ctrl+C to quit]
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2115] - Initiating Kafka Core
+[2024-03-27 04:03:44] [INFO] [policyServer.c:1664] - Starting stats process in 3
+[2024-03-27 04:03:44] [INFO] [policyServer.c:2120] - Initiating Heartbeat Mechanism
+[2024-03-27 04:03:44] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:03:44.000Z"}]
+[2024-03-27 04:03:44] [INFO] [policyServer.c:649] - Response: [] 
+[2024-03-27 04:03:44] [INFO] [policyServer.c:961] - Send Count Success: []
+[2024-03-27 04:03:44] [INFO] [policyServer.c:1049] - Sending statistics to server
+[2024-03-27 04:03:44] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32960,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:03:44.000Z"}]} 
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T02:47:04.251Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":3,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-25T03:11:55.557Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":0,"name":"Wikipedia","domain":"wikipedia.com","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T02:41:48.771Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Test","domain":"Test","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"updatedBlockedList":{"id":"6d474306-292b-46e0-bfa0-3c21266e26b2","name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250","hit_count":0,"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
+[2024-03-27 04:03:44] [INFO] [policyServer.c:302] - facebook.co.id updated to the database
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"updatedBlockedList":{"id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","name":"Youtube","domain":"youtube.com","ip_add":"","hit_count":0,"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":{"val":"CURRENT_TIMESTAMP"}},"type":"update"}
+[2024-03-27 04:03:44] [INFO] [policyServer.c:302] - youtube.com updated to the database
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T02:52:00.176Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":34085879,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T02:52:00.176Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":34085879,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T02:57:00.126Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":34266227,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:05:00.205Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":34540169,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:05:00.205Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":34540169,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:26:00.389Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":35003993,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:26:00.389Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":35003993,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:26:00.389Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":35003993,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:26:00.389Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":35003993,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:27:00.737Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":35045071,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:27:00.737Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":35045071,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:27:00.737Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":35045071,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:29:35.924Z","updatedAt":"2024-03-25T14:58:00.230Z","id":"39eb26c2-250c-4a05-934e-530333a7a301","hit_count":92,"name":"UI","domain":"ui.ac.id","ip_add":"152.77.99.23"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:14:53.999Z","updatedAt":"2024-03-25T03:14:53.999Z","id":"4ffd7e95-cbc7-4b8f-a516-b6dbe4c18ea3","hit_count":0,"name":"Idlix","domain":"tv1.idlixofficial.co","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T03:11:55.557Z","updatedAt":"2024-03-26T03:27:00.737Z","id":"6d474306-292b-46e0-bfa0-3c21266e26b2","hit_count":35045071,"name":"Facebook","domain":"facebook.co.id","ip_add":"192.168.88.250"},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:44] [INFO] [policyServer.c:197] - Received message: {"createdBlockedList":{"createdAt":"2024-03-25T02:41:48.771Z","updatedAt":"2024-03-25T09:56:23.620Z","id":"6eb8b537-3d24-4f24-9b7c-6088e3bd540a","hit_count":0,"name":"Youtube","domain":"youtube.com","ip_add":""},"type":"create"}
+[2024-03-27 04:03:44] [WARNING] [policyServer.c:297] - SQL error: UNIQUE constraint failed: policies.id
+[2024-03-27 04:03:49] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:03:49.000Z"}]
+[2024-03-27 04:03:49] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32961,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:03:49.000Z"}]} 
+[2024-03-27 04:03:54] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:03:54.000Z"}]
+[2024-03-27 04:03:54] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32962,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:03:54.000Z"}]} 
+[2024-03-27 04:03:59] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:03:59.000Z"}]
+[2024-03-27 04:03:59] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32963,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:03:59.000Z"}]} 
+[2024-03-27 04:04:00] [INFO] [policyServer.c:1049] - Sending statistics to server
+[2024-03-27 04:04:00] [INFO] [policyServer.c:649] - Response: [{"id":"6d474306-292b-46e0-bfa0-3c21266e26b2","message":"Blocked list hit count successfully updated"}] 
+[2024-03-27 04:04:00] [INFO] [policyServer.c:961] - Send Count Success: [{"id": "6d474306-292b-46e0-bfa0-3c21266e26b2", "hit_count": 8282}]
+[2024-03-27 04:04:04] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:04.000Z"}]
+[2024-03-27 04:04:04] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32964,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:04.000Z"}]} 
+[2024-03-27 04:04:09] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:09.000Z"}]
+[2024-03-27 04:04:09] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32965,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:09.000Z"}]} 
+[2024-03-27 04:04:14] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:14.000Z"}]
+[2024-03-27 04:04:14] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32966,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:14.000Z"}]} 
+[2024-03-27 04:04:19] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:19.000Z"}]
+[2024-03-27 04:04:19] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32967,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:19.000Z"}]} 
+[2024-03-27 04:04:24] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:24.000Z"}]
+[2024-03-27 04:04:24] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32968,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:24.000Z"}]} 
+[2024-03-27 04:04:29] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:29.000Z"}]
+[2024-03-27 04:04:29] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32969,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:29.000Z"}]} 
+[2024-03-27 04:04:34] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:34.000Z"}]
+[2024-03-27 04:04:34] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32970,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:34.000Z"}]} 
+[2024-03-27 04:04:39] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:39.000Z"}]
+[2024-03-27 04:04:39] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32971,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:39.000Z"}]} 
+[2024-03-27 04:04:44] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:44.000Z"}]
+[2024-03-27 04:04:44] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32972,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:44.000Z"}]} 

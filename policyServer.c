@@ -307,80 +307,6 @@ cleanup:
 		json_decref(root);
 }
 
-/**
- * This function creates a Kafka consumer, subscribes to a Kafka topic, opens an SQLite database,
- * and starts consuming messages from the topic. The consumed messages are then stored in the database.
- * The function continues to consume messages until the `force_quit` flag is set to true.
-*/
-void run_kafka_consumer()
-{
-	rd_kafka_t *rk;			 // Kafka handle
-	rd_kafka_conf_t *conf;	 // Kafka configuration
-	rd_kafka_resp_err_t err; // Kafka error handler
-	rd_kafka_topic_t *topic; // Kafka topic
-
-	// Kafka configuration
-	conf = rd_kafka_conf_new();
-	if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER, NULL, 0) != RD_KAFKA_CONF_OK)
-	{
-		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to set Kafka broker configuration\n");
-		return;
-	}
-
-	// Create Kafka consumer
-	rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, NULL, 0);
-	if (!rk)
-	{
-		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to create Kafka consumer\n");
-		return;
-	}
-
-	// Subscribe to Kafka topic
-	topic = rd_kafka_topic_new(rk, KAFKA_TOPIC, NULL);
-	if (!topic)
-	{
-		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to create Kafka topic object\n");
-		rd_kafka_destroy(rk);
-		return;
-	}
-
-	// Open SQLite database
-	if (sqlite3_open(db_path, &db) != SQLITE_OK)
-	{
-		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Can't open database: %s\n", sqlite3_errmsg(db));
-		rd_kafka_topic_destroy(topic);
-		rd_kafka_destroy(rk);
-		return;
-	}
-
-	// Start consuming messages
-	if (rd_kafka_consume_start(topic, 0, RD_KAFKA_OFFSET_BEGINNING) == -1)
-	{
-		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to start consuming messages\n");
-		rd_kafka_topic_destroy(topic);
-		rd_kafka_destroy(rk);
-		sqlite3_close(db);
-		return;
-	}
-
-	// Loop to consume messages
-	while (!force_quit)
-	{
-		rd_kafka_message_t *rkmessage;
-		rkmessage = rd_kafka_consume(topic, 0, 1000); // 1 second timeout
-		if (rkmessage)
-		{
-			msg_consume(rkmessage, db);
-			rd_kafka_message_destroy(rkmessage);
-		}
-	}
-
-	// Cleanup
-	rd_kafka_consume_stop(topic, 0);
-	rd_kafka_topic_destroy(topic);
-	rd_kafka_destroy(rk);
-	sqlite3_close(db);
-}
 
 /**
  * This function configures and starts an Ethernet port with the specified port number.
@@ -1992,7 +1918,72 @@ lcore_heartbeat_process()
 static inline void
 lcore_sync_database()
 {
-	run_kafka_consumer();
+	rd_kafka_t *rk;			 // Kafka handle
+	rd_kafka_conf_t *conf;	 // Kafka configuration
+	rd_kafka_resp_err_t err; // Kafka error handler
+	rd_kafka_topic_t *topic; // Kafka topic
+
+	// Kafka configuration
+	conf = rd_kafka_conf_new();
+	if (rd_kafka_conf_set(conf, "bootstrap.servers", KAFKA_BROKER, NULL, 0) != RD_KAFKA_CONF_OK)
+	{
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to set Kafka broker configuration\n");
+		return;
+	}
+
+	// Create Kafka consumer
+	rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, NULL, 0);
+	if (!rk)
+	{
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to create Kafka consumer\n");
+		return;
+	}
+
+	// Subscribe to Kafka topic
+	topic = rd_kafka_topic_new(rk, KAFKA_TOPIC, NULL);
+	if (!topic)
+	{
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to create Kafka topic object\n");
+		rd_kafka_destroy(rk);
+		return;
+	}
+
+	// Open SQLite database
+	if (sqlite3_open(db_path, &db) != SQLITE_OK)
+	{
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Can't open database: %s\n", sqlite3_errmsg(db));
+		rd_kafka_topic_destroy(topic);
+		rd_kafka_destroy(rk);
+		return;
+	}
+
+	// Start consuming messages
+	if (rd_kafka_consume_start(topic, 0, RD_KAFKA_OFFSET_BEGINNING) == -1)
+	{
+		logMessage(LOG_LEVEL_ERROR, __FILE__, __LINE__, "Failed to start consuming messages\n");
+		rd_kafka_topic_destroy(topic);
+		rd_kafka_destroy(rk);
+		sqlite3_close(db);
+		return;
+	}
+
+	// Loop to consume messages
+	while (!force_quit)
+	{
+		rd_kafka_message_t *rkmessage;
+		rkmessage = rd_kafka_consume(topic, 0, 1000); // 1 second timeout
+		if (rkmessage)
+		{
+			msg_consume(rkmessage, db);
+			rd_kafka_message_destroy(rkmessage);
+		}
+	}
+
+	// Cleanup
+	rd_kafka_consume_stop(topic, 0);
+	rd_kafka_topic_destroy(topic);
+	rd_kafka_destroy(rk);
+	sqlite3_close(db);
 }
 
 /**
