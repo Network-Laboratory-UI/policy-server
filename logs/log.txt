@@ -190,3 +190,11 @@
 [2024-03-27 04:05:00] [INFO] [policyServer.c:961] - Send Count Success: [{"id": "6d474306-292b-46e0-bfa0-3c21266e26b2", "hit_count": 28870}]
 [2024-03-27 04:05:04] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:05:04.000Z"}]
 [2024-03-27 04:05:04] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32976,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:05:04.000Z"}]} 
+[2024-03-27 04:05:09] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:05:09.000Z"}]
+[2024-03-27 04:05:09] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32977,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:05:09.000Z"}]} 
+[2024-03-27 04:05:14] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:05:14.000Z"}]
+[2024-03-27 04:05:14] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32978,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:05:14.000Z"}]} 
+[2024-03-27 04:05:19] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:05:19.000Z"}]
+[2024-03-27 04:05:19] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32979,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:05:19.000Z"}]} 
+[2024-03-27 04:05:24] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:05:24.000Z"}]
+[2024-03-27 04:05:24] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32980,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:05:24.000Z"}]} 
