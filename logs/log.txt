@@ -179,3 +179,14 @@
 [2024-03-27 04:04:39] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32971,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:39.000Z"}]} 
 [2024-03-27 04:04:44] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:44.000Z"}]
 [2024-03-27 04:04:44] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32972,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:44.000Z"}]} 
+[2024-03-27 04:04:49] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:49.000Z"}]
+[2024-03-27 04:04:49] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32973,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:49.000Z"}]} 
+[2024-03-27 04:04:54] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:54.000Z"}]
+[2024-03-27 04:04:54] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32974,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:54.000Z"}]} 
+[2024-03-27 04:04:59] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:04:59.000Z"}]
+[2024-03-27 04:04:59] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32975,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:04:59.000Z"}]} 
+[2024-03-27 04:05:00] [INFO] [policyServer.c:1049] - Sending statistics to server
+[2024-03-27 04:05:00] [INFO] [policyServer.c:649] - Response: [{"id":"6d474306-292b-46e0-bfa0-3c21266e26b2","message":"Blocked list hit count successfully updated"}] 
+[2024-03-27 04:05:00] [INFO] [policyServer.c:961] - Send Count Success: [{"id": "6d474306-292b-46e0-bfa0-3c21266e26b2", "hit_count": 28870}]
+[2024-03-27 04:05:04] [INFO] [policyServer.c:1890] - Post Fields : [{"ps_id": "778a170c-9823-478c-9f66-8959bf8519d7", "time": "2024-03-27T04:05:04.000Z"}]
+[2024-03-27 04:05:04] [INFO] [policyServer.c:649] - Response: {"message":"Heartbeats created successfully","heartbeats":[{"heartbeat_id":32976,"ps_id":"778a170c-9823-478c-9f66-8959bf8519d7","time":"2024-03-27T04:05:04.000Z"}]} 
