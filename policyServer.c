@@ -748,6 +748,7 @@ static void populate_json_hitcount(json_t *jsonArray)
 	}
 	memset(db_hit_count, 0, sizeof(db_hit_count));
 }
+
 /**
  * This function takes a JSON array and a timestamp as input and populates a JSON object with various statistics data.
  * The statistics data includes counts, sizes, errors, drops, and throughput for different types of HTTP and TLS traffic.
@@ -756,7 +757,6 @@ static void populate_json_hitcount(json_t *jsonArray)
  * @param jsonArray A pointer to the JSON array to which the populated JSON object will be appended.
  * @param timestamp A pointer to the timestamp string to be included in the JSON object.
  */
-
 static void
 populate_json_stats(json_t *jsonArray, char *timestamp)
 {
@@ -815,6 +815,7 @@ populate_json_stats(json_t *jsonArray, char *timestamp)
 	// Append the JSON object to the JSON array
 	json_array_append(jsonArray, jsonObject);
 }
+
 /**
  * This function retrieves statistics for each port using the `rte_eth_stats_get()` function.
  * It then updates the statistics in the `port_statistics` array based on the retrieved values.
@@ -1203,7 +1204,7 @@ static inline char *extractDomainfromHTTPS(struct rte_mbuf *pkt)
 			// Dynamically allocate memory for the string to return
 			char *result = (char *)malloc(strlen(extractedName) + 1);
 			strcpy(result, extractedName);
-
+			
 			return result;
 		}
 		else
